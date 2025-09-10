@@ -1,0 +1,46 @@
+
+RewriteEngine On
+
+#RewriteBase /multi-sucursal/
+RewriteBase /
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ public/index.php?action=$1 [L,QSA]
+
+
+# ----------------------------------------------------------------------
+# SEGURIDAD ADICIONAL
+# ----------------------------------------------------------------------
+
+# Previene el listado de directorios si no se encuentra un index.
+Options -Indexes
+
+# Bloquea el acceso directo a archivos sensibles
+<Files ".htaccess">
+    Require all denied
+</Files>
+<Files "config/Database.php">
+    Require all denied
+</Files>
+
+# -----------------------------
+# CACHE
+# -----------------------------
+<IfModule mod_headers.c>
+  # No cache para PHP/HTML (rutas dinámicas que entran a public/index.php)
+  <FilesMatch "\.(php|html)$">
+    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+
+  <FilesMatch "\.(?:js|css|png|jpg|jpeg|gif|svg|webp|ico|woff2?|ttf|eot)$">
+  Header set Cache-Control "no-cache, must-revalidate, max-age=0"
+  </FilesMatch>
+
+
+  # Opcional: desactiva ETag para evitar inconsistencias entre servidores
+  Header unset ETag
+</IfModule>
+FileETag None

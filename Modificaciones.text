@@ -1,0 +1,9 @@
+1.- Se modifica la tabla pagos_clientes, se agrega columna detalle y fecha_recibido
+
+ALTER TABLE pagos_clientes
+  ADD COLUMN detalle VARCHAR(300) NULL AFTER metodo_pago,
+  ADD COLUMN fecha_recibido DATE NOT NULL DEFAULT (CURRENT_DATE) AFTER detalle;
+
+-- (Asegúrate de que 'fecha' siga como auditoría)
+ALTER TABLE pagos_clientes
+  MODIFY COLUMN fecha TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
