@@ -7,3 +7,7 @@ ALTER TABLE pagos_clientes
 -- (Asegúrate de que 'fecha' siga como auditoría)
 ALTER TABLE pagos_clientes
   MODIFY COLUMN fecha TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+
+
+Lista de cambios
