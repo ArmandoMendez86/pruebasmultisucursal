@@ -189,10 +189,10 @@ $logo = !empty($_SESSION['logo_url']) ? '/multi-sucursal/public' . $_SESSION['lo
         <i class="fas fa-cog fa-fw w-6 h-6"></i><span class="nav-text ml-3">Configuración</span><span
           class="tooltip">Configuración</span>
       </a>
-     <!--  <a href="reportes_dinamicos.php" class="tooltip-container flex items-center px-4 py-2.5 text-sm font-medium rounded-lg <?php echo ($currentPage == 'report_builder.php') ? 'bg-[var(--color-accent)] text-white' : 'hover:bg-[var(--color-bg-primary)]'; ?>">
+      <a href="reportes_dinamicos.php" class="tooltip-container flex items-center px-4 py-2.5 text-sm font-medium rounded-lg <?php echo ($currentPage == 'report_builder.php') ? 'bg-[var(--color-accent)] text-white' : 'hover:bg-[var(--color-bg-primary)]'; ?>">
         <i class="fas fa-table mr-2"></i> <span class="nav-text ml-3">Reportes dinamicos</span><span
           class="tooltip">Reportes dinamicos</span>
-      </a> -->
+      </a>
     <?php endif; ?>
     <?php if (isset($_SESSION['rol']) && $_SESSION['rol'] == 'Super'): ?>
       <a href="reporte_global.php"
