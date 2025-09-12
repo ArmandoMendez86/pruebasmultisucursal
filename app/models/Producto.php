@@ -19,6 +19,19 @@ class Producto
         $this->conn = $database->getConnection();
     }
 
+    public function getStockByBranch($id_producto, $id_sucursal)
+    {
+        $sql = "SELECT stock FROM {$this->inventory_table}
+            WHERE id_producto = :p AND id_sucursal = :s LIMIT 1";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bindValue(':p', $id_producto, PDO::PARAM_INT);
+        $stmt->bindValue(':s', $id_sucursal, PDO::PARAM_INT);
+        $stmt->execute();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ? (int) $row['stock'] : 0;
+    }
+
+
     private function getProductImages($productId)
     {
         $query = "SELECT id, url_imagen, orden FROM " . $this->images_table . " WHERE producto_id = :producto_id ORDER BY orden ASC";

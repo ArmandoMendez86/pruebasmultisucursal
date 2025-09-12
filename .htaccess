@@ -1,7 +1,7 @@
 
 RewriteEngine On
 
-#RewriteBase /multi-sucursal/
+#RewriteBase /pruebasmultisucursal/
 RewriteBase /
 
 RewriteCond %{REQUEST_FILENAME} !-f

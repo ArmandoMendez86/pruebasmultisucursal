@@ -833,7 +833,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const action = adjustAction.value;
         let newStock;
         if (action === 'increase') {
-            newStock = currentStock + quantityChange;
+            //newStock = currentStock + quantityChange;
+            newStock = quantityChange;
             requestBody.tipo_movimiento = 'entrada';
         } else {
             if (quantityChange > currentStock) {
@@ -844,7 +845,7 @@ document.addEventListener('DOMContentLoaded', function () {
             requestBody.tipo_movimiento = 'salida';
         }
         requestBody.new_stock = newStock;
-        const confirmed = await showConfirm(`¿Confirmas el ajuste ? El nuevo stock será ${newStock}.`);
+        const confirmed = await showConfirm(`¿Confirmas el ajuste ? Agregando stock ${newStock}.`);
         if (!confirmed) return;
         try {
             const response = await fetch(`${BASE_URL}/adjustStock`, {

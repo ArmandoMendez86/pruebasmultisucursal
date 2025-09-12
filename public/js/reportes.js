@@ -665,14 +665,14 @@ document.addEventListener("DOMContentLoaded", function () {
                 <div>
                     <h3 class="text-lg font-semibold text-[var(--color-text-primary)] mb-3 flex items-center"><i class="fas fa-arrow-alt-circle-down text-green-400 mr-2"></i> Ingresos</h3>
                     <div class="space-y-3 text-sm">
-                        <div class="flex justify-between items-center"><span>Caja Inicial:</span><span class="font-mono text-blue-300">${formatCurrency(initialCash)}</span></div>
-                        <div class="flex justify-between items-center"><span>Ventas en Efectivo:</span><span class="font-mono text-green-300">${formatCurrency(data.ventas_efectivo)}</span></div>
+                        <div class="flex justify-between items-center"><span>Caja Inicial:</span><span class="font-mono text-blue-300">${formatCurrencyMXN(initialCash)}</span></div>
+                        <div class="flex justify-between items-center"><span>Ventas en Efectivo:</span><span class="font-mono text-green-300">${formatCurrencyMXN(data.ventas_efectivo)}</span></div>
                         <div class="flex flex-col">
-                            <div class="flex justify-between items-center cursor-pointer hover:text-gray-200" id="toggle-abonos"><span>Abonos de Clientes:</span><span class="font-mono text-green-300">${formatCurrency(data.abonos_clientes)} <i class="fas fa-chevron-down ml-2 transition-transform duration-300"></i></span></div>
+                            <div class="flex justify-between items-center cursor-pointer hover:text-gray-200" id="toggle-abonos"><span>Abonos de Clientes:</span><span class="font-mono text-green-300">${formatCurrencyMXN(data.abonos_clientes)} <i class="fas fa-chevron-down ml-2 transition-transform duration-300"></i></span></div>
                             <div id="abonos-detail" class="mt-2 pl-4 text-xs text-[var(--color-text-secondary)] hidden"><p>Cargando abonos...</p></div>
                         </div>
                         <hr class="border-[var(--color-border)] my-2">
-                        <div class="flex justify-between items-center font-bold text-base"><span>Total Ingresos en Caja:</span><span class="font-mono text-green-400">${formatCurrency(totalIngresosEfectivo)}</span></div>
+                        <div class="flex justify-between items-center font-bold text-base"><span>Total Ingresos en Caja:</span><span class="font-mono text-green-400">${formatCurrencyMXN(totalIngresosEfectivo)}</span></div>
                     </div>
                 </div>
             </div>
@@ -681,21 +681,21 @@ document.addEventListener("DOMContentLoaded", function () {
                     <h3 class="text-lg font-semibold text-[var(--color-text-primary)] mb-3 flex items-center"><i class="fas fa-arrow-alt-circle-up text-red-400 mr-2"></i> Egresos</h3>
                     <div class="space-y-3 text-sm mb-4">
                         <div class="flex flex-col">
-                            <div class="flex justify-between items-center cursor-pointer hover:text-gray-200" id="toggle-gastos"><span>Total de Gastos:</span><span class="font-mono text-red-300">${formatCurrency(data.total_gastos)} <i class="fas fa-chevron-down ml-2 transition-transform duration-300"></i></span></div>
+                            <div class="flex justify-between items-center cursor-pointer hover:text-gray-200" id="toggle-gastos"><span>Total de Gastos:</span><span class="font-mono text-red-300">${formatCurrencyMXN(data.total_gastos)} <i class="fas fa-chevron-down ml-2 transition-transform duration-300"></i></span></div>
                             <div id="gastos-detail" class="mt-2 pl-4 text-xs text-[var(--color-text-secondary)] hidden"><p>Cargando gastos...</p></div>
                         </div>
                     </div>
                     <hr class="border-[var(--color-border)] my-2">
-                    <div class="flex justify-between items-center pt-4 text-lg font-bold"><span class="text-[var(--color-text-primary)]">Balance Final en Caja:</span><span class="font-mono ${balanceFinal >= 0 ? "text-green-400" : "text-red-400"}">${formatCurrency(balanceFinal)}</span></div>
+                    <div class="flex justify-between items-center pt-4 text-lg font-bold"><span class="text-[var(--color-text-primary)]">Balance Final en Caja:</span><span class="font-mono ${balanceFinal >= 0 ? "text-green-400" : "text-red-400"}">${formatCurrencyMXN(balanceFinal)}</span></div>
                 </div>
             </div>
             <div class="col-span-full bg-[var(--color-bg-primary)] p-4 rounded-lg shadow-inner mt-4">
                 <h3 class="text-md font-semibold text-[var(--color-text-secondary)] mb-3 flex items-center"><i class="fas fa-info-circle text-blue-400 mr-2"></i> Otros Totales (Informativos)</h3>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-2 text-xs">
-                    <div class="flex justify-between items-center"><span>Total Ventas (Todos los métodos):</span><span class="font-mono text-[var(--color-text-secondary)]">${formatCurrency(data.total_ventas)}</span></div>
-                    <div class="flex justify-between items-center"><span>Ventas con Tarjeta:</span><span class="font-mono text-[var(--color-text-secondary)]">${formatCurrency(data.ventas_tarjeta)}</span></div>
-                    <div class="flex justify-between items-center"><span>Ventas por Transferencia:</span><span class="font-mono text-[var(--color-text-secondary)]">${formatCurrency(data.ventas_transferencia)}</span></div>
-                    <div class="flex justify-between items-center"><span>Ventas a Crédito:</span><span class="font-mono text-[var(--color-text-secondary)]">${formatCurrency(data.ventas_credito)}</span></div>
+                    <div class="flex justify-between items-center"><span>Total Ventas (Todos los métodos):</span><span class="font-mono text-[var(--color-text-secondary)]">${formatCurrencyMXN(data.total_ventas)}</span></div>
+                    <div class="flex justify-between items-center"><span>Ventas con Tarjeta:</span><span class="font-mono text-[var(--color-text-secondary)]">${formatCurrencyMXN(data.ventas_tarjeta)}</span></div>
+                    <div class="flex justify-between items-center"><span>Ventas por Transferencia:</span><span class="font-mono text-[var(--color-text-secondary)]">${formatCurrencyMXN(data.ventas_transferencia)}</span></div>
+                    <div class="flex justify-between items-center"><span>Ventas a Crédito:</span><span class="font-mono text-[var(--color-text-secondary)]">${formatCurrencyMXN(data.ventas_credito)}</span></div>
                 </div>
             </div>`;
 

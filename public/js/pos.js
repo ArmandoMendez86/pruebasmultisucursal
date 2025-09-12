@@ -462,6 +462,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       cart.push({ ...product, quantity: 1, id: product.id, descripcion, uid: (++cartUid) });
       renderCart();
+      cartItemsContainer.scrollTop = cartItemsContainer.scrollHeight;
     } catch (_) {
       showToast("Error de conexión al añadir el producto.", "error");
     }

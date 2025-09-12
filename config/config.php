@@ -5,7 +5,7 @@
 define('DB_HOST', 'localhost');
 define('DB_USER', 'root');
 define('DB_PASSWORD', 'linux');
-define('DB_NAME', 'pruebas_multisucursal');
+define('DB_NAME', 'pruebas_mega');
 define('DB_CHARSET', 'utf8mb4');
 
 
@@ -18,6 +18,6 @@ define('DB2_NAME', 'u111680873_pruebas');
 
 
 // =========== CONFIGURACIÓN GENERAL DE LA APP ===========
-define('URL', '/multi-sucursal/');
+define('URL', '/pruebasmultisucursal/');
 
 ?>

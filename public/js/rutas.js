@@ -1,3 +1,3 @@
-//const BASE_URL = '/multi-sucursal';
+//const BASE_URL = '/pruebasmultisucursal';
 const BASE_URL = '';
 

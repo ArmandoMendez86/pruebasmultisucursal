@@ -348,6 +348,20 @@ class ProductoController
             $id_sucursal = filter_var($data['id_sucursal'], FILTER_SANITIZE_NUMBER_INT);
         }
 
+        // Leer stock real en BD para la sucursal destino
+        $stock_anterior = $this->productoModel->getStockByBranch($id_producto, $id_sucursal);
+
+        if ($tipo_movimiento === 'salida') {
+            if ($cantidad_movida > $stock_anterior) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => 'No hay stock suficiente.']);
+                return;
+            }
+            $new_stock = $stock_anterior - $cantidad_movida;
+        } else {
+            $new_stock = $stock_anterior + $cantidad_movida;
+        }
+
         try {
             $success = $this->productoModel->updateStock(
                 $id_producto,
