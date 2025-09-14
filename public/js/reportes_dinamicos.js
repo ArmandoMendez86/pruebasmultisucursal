@@ -625,4 +625,152 @@ $(async function () {
 
     // Go!
     await loadMeta();
+
+    // ====== SQL LIBRE ======
+    (function () {
+        let sqlTable = null;
+
+        async function runSQL() {
+            const sql = ($('#sql-textarea').val() || '').trim();
+            const limit = parseInt($('#sql-limit').val() || '1000', 10);
+            if (!sql) return alert('Escribe una consulta SELECT.');
+
+            try {
+                const res = await fetch(`${BASE_URL}/runRawSQL`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sql, limit })
+                }).then(r => r.json());
+
+                if (!res.success) throw new Error(res.message || 'No se pudo ejecutar la consulta.');
+
+                const rows = res.data.rows || [];
+                const columns = res.data.columns || [];
+
+                if (sqlTable) {
+                    sqlTable.destroy();
+                    $('#sql-table').empty();
+                }
+
+                sqlTable = $('#sql-table').DataTable({
+                    data: rows,
+                    columns: columns,
+                    dom: "<'dt-top-controls'<'left-controls'l><'center-controls'B><'right-controls'f>>" +
+                        "<'row'<'col-sm-12'tr>>" +
+                        "<'dt-bottom-controls'<'left-controls'i><'right-controls'p>>",
+                    buttons: [
+                        { extend: 'excelHtml5', text: 'Exportar Excel' },
+                        // { extend: 'pdfHtml5',   text: 'Exportar PDF', orientation: 'landscape', pageSize: 'A4' },
+                        { extend: 'print', text: 'Imprimir' }
+                    ],
+                    scrollX: true,
+                    autoWidth: false,        // evita cálculos raros de anchos
+                    lengthMenu: [[10, 25, 50, 100, 500, 1000], [10, 25, 50, 100, 500, 1000]],
+                    order: []                // sin orden inicial para no reacomodar
+                });
+
+                // Ajusta anchos si el contenedor cambió de tamaño o hay scrollX
+                sqlTable.columns.adjust().draw(false);
+
+            } catch (err) {
+                alert(err.message || 'Error al ejecutar SQL.');
+            }
+        }
+
+        $(document).on('click', '#run-sql', runSQL);
+    })();
+
+
+    // ====== PRESETS PARA SQL LIBRE ======
+    const SQL_PRESETS = {
+        list: `${BASE_URL}/listSqlPresets`,
+        save: `${BASE_URL}/savePreset`,
+        get: `${BASE_URL}/getPreset`,
+        del: `${BASE_URL}/deletePreset`,
+    };
+
+    async function refreshSqlPresets() {
+        try {
+            const r = await fetch(SQL_PRESETS.list);
+            const j = await r.json();
+            const $sel = $('#sql-presets');
+            $sel.empty().append(`<option value="">(Cargar preset SQL...)</option>`);
+            if (j?.success && Array.isArray(j.data)) {
+                for (const p of j.data) {
+                    $sel.append(`<option value="${p.id}">${p.nombre}</option>`);
+                }
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async function saveSqlPreset() {
+        const nombre = ($('#sql-name').val() || '').trim();
+        if (!nombre) { alert('Pon un nombre para el preset'); return; }
+        const descripcion = ($('#sql-desc').val() || '').trim();
+        const sql = ($('#sql-textarea').val() || '').trim();     // usa el id de tu textarea
+        if (!sql.toLowerCase().includes('select')) { alert('Solo se guardan consultas SELECT.'); return; }
+        const limit = parseInt($('#sql-limit').val() || '1000', 10);
+
+        const payload = {
+            nombre,
+            descripcion,
+            config: { type: 'sql', sql, limit }
+        };
+
+        const r = await fetch(SQL_PRESETS.save, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const j = await r.json();
+        if (!j?.success) { alert(j?.message || 'No se pudo guardar'); return; }
+        await refreshSqlPresets();
+        $('#sql-presets').val(String(j.id));
+        alert('Preset SQL guardado');
+    }
+
+    async function loadSqlPreset() {
+        const id = parseInt($('#sql-presets').val() || '0', 10);
+        if (!id) { alert('Selecciona un preset'); return; }
+        const r = await fetch(`${SQL_PRESETS.get}?id=${id}`);
+        const j = await r.json();
+        if (!j?.success) { alert(j?.message || 'No se pudo cargar'); return; }
+
+        const cfg = j.data?.config || {};
+        if (cfg.type !== 'sql') { alert('Este preset no es de SQL'); return; }
+        $('#sql-textarea').val(cfg.sql || '');
+        $('#sql-limit').val(cfg.limit || 1000);
+
+        // Opcional: ejecutar inmediatamente
+        // $('#btn-run-sql').trigger('click');
+    }
+
+    async function deleteSqlPreset() {
+        const id = parseInt($('#sql-presets').val() || '0', 10);
+        if (!id) { alert('Selecciona un preset'); return; }
+        if (!confirm('¿Eliminar este preset SQL?')) return;
+
+        const r = await fetch(SQL_PRESETS.del, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id })
+        });
+        const j = await r.json();
+        if (!j?.success) { alert(j?.message || 'No se pudo eliminar'); return; }
+        await refreshSqlPresets();
+        $('#sql-name, #sql-desc').val('');
+        $('#sql-textarea').focus();
+    }
+
+    // Bindings
+    $(document).ready(function () {
+        refreshSqlPresets();
+        $('#sql-save').on('click', saveSqlPreset);
+        $('#sql-load').on('click', loadSqlPreset);
+        $('#sql-del').on('click', deleteSqlPreset);
+    });
+
+
 });

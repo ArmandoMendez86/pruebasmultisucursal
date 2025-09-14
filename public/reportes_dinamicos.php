@@ -217,6 +217,75 @@ if (!isset($_SESSION['rol']) || $_SESSION['rol'] !== 'Super') {
             </div>
         </section>
 
+        <!-- ===== SQL LIBRE (tipo Workbench) ===== -->
+        <section class="card">
+            <!--  <div class="card-head px-4 py-3 flex items-center gap-2">
+                <h2 class="font-semibold">SQL libre (solo SELECT)</h2>
+                <div class="ms-auto flex items-center gap-2 text-sm">
+                    <label class="flex items-center gap-1">
+                        <span>Límite</span>
+                        <input id="sql-limit" type="number" min="1" value="1000"
+                            class="w-24 bg-slate-950 border border-slate-700 rounded px-2 py-1">
+                    </label>
+                    <button id="run-sql" class="px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white">
+                        Ejecutar SQL
+                    </button>
+                </div>
+            </div> -->
+            <div class="card-head px-4 py-3 flex flex-wrap items-center gap-2">
+                <strong class="font-semibold">SQL libre (solo SELECT)</strong>
+
+                <div class="ms-auto flex items-center gap-2">
+                    <span class="text-sm text-slate-400">Límite</span>
+                    <input id="sql-limit" type="number" min="1" value="1000"
+                        class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-sm w-24"
+                        placeholder="Límite">
+                    <button id="run-sql" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white">
+                        Ejecutar SQL
+                    </button>
+                </div>
+
+                <div class="w-full"></div>
+
+                <!-- Presets SQL -->
+                <input id="sql-name" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-sm w-56"
+                    placeholder="Nombre del preset">
+
+                <input id="sql-desc" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-sm w-72"
+                    placeholder="Descripción (opcional)">
+
+                <select id="sql-presets" class="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-sm w-72">
+                    <option value="">(Cargar preset SQL...)</option>
+                </select>
+
+                <button id="sql-load" class="px-3 py-1 rounded bg-slate-800 hover:bg-slate-700">
+                    Abrir
+                </button>
+
+                <button id="sql-save" class="px-3 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white">
+                    Guardar
+                </button>
+
+                <button id="sql-del" class="px-3 py-1 rounded bg-rose-600 hover:bg-rose-500 text-white">
+                    Eliminar
+                </button>
+            </div>
+
+
+            <div class="p-3">
+                <textarea id="sql-textarea" rows="6"
+                    class="w-full bg-slate-950 border border-slate-700 rounded p-2 font-mono text-sm" placeholder="Ejemplo: SELECT v.id, v.fecha, c.nombre, v.total
+            FROM ventas v
+            LEFT JOIN clientes c ON c.id = v.cliente_id
+            WHERE v.fecha BETWEEN '2025-01-01' AND '2025-12-31';"></textarea>
+            </div>
+
+            <div class="p-2 dt-wrap">
+                <table id="sql-table" class="display w-full text-sm"></table>
+            </div>
+        </section>
+
+
 
         <!-- Layout responsive (paneles) -->
         <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">

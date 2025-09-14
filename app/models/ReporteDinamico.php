@@ -614,4 +614,74 @@ class ReporteDinamico
         return $st->rowCount() > 0;
     }
 
+    //Consultas libres tipo SQL
+
+    public function runRawSQL(string $sql, int $limit = 1000): array
+    {
+        $sql = trim($sql);
+        if ($sql === '') {
+            throw new InvalidArgumentException('SQL vacío.');
+        }
+        // Solo una sentencia y que inicie con SELECT
+        if (preg_match('/;\s*\S/', $sql)) {
+            throw new RuntimeException('Solo se permite una sentencia SQL por vez.');
+        }
+        if (stripos(ltrim($sql), 'select') !== 0) {
+            throw new RuntimeException('Solo se permiten consultas SELECT.');
+        }
+        // Si no hay LIMIT, añadimos uno
+        if (!preg_match('/\blimit\b/i', $sql)) {
+            $sql .= ' LIMIT ' . max(1, (int) $limit);
+        }
+
+        // Ejecuta con la MISMA conexión
+        $stmt = $this->conn->query($sql);
+
+        // Nombres de columnas en el orden real del SELECT
+        $colCount = $stmt->columnCount();
+        $orderedCols = [];
+        for ($i = 0; $i < $colCount; $i++) {
+            $meta = $stmt->getColumnMeta($i);
+            $name = $meta['name'] ?? ('col' . ($i + 1));
+            $orderedCols[] = $name;
+        }
+
+        // Filas en ASSOC para que DataTables reciba objetos {col: valor}
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Estructura de columnas para DataTables
+        $columns = array_map(function ($c) {
+            return ['data' => $c, 'title' => $c];
+        }, $orderedCols);
+
+        return [
+            'columns' => $columns,
+            'rows' => $rows
+        ];
+    }
+
+    public function listSqlPresets(): array
+    {
+        $st = $this->conn->query("
+        SELECT id, nombre, descripcion, config_json, created_at
+        FROM reportes_dinamicos_presets
+        ORDER BY created_at DESC, nombre ASC
+    ");
+        $rows = $st->fetchAll(PDO::FETCH_ASSOC);
+        $out = [];
+        foreach ($rows as $r) {
+            $cfg = json_decode($r['config_json'] ?? 'null', true);
+            if (isset($cfg['type']) && $cfg['type'] === 'sql') {
+                $out[] = [
+                    'id' => (int) $r['id'],
+                    'nombre' => $r['nombre'],
+                    'descripcion' => $r['descripcion'],
+                    'created_at' => $r['created_at'],
+                ];
+            }
+        }
+        return $out;
+    }
+
+
 }

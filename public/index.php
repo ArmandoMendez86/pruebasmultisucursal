@@ -165,7 +165,7 @@ if (in_array($action, ['login', 'logout', 'check-session'])) {
 ) {
     require_once __DIR__ . '/../app/controllers/UsuarioController.php';
     $controller = new UsuarioController();
-} elseif (in_array($action, ['getReportBuilderMeta', 'getDynamicReportServerSide', 'listPresets', 'savePreset', 'getPreset', 'deletePreset'])) {
+} elseif (in_array($action, ['getReportBuilderMeta', 'getDynamicReportServerSide', 'listPresets', 'savePreset', 'getPreset', 'deletePreset', 'runRawSQL', 'listSqlPresets'])) {
     require_once __DIR__ . '/../app/controllers/ReporteDinamicoController.php';
     $controller = new ReporteDinamicoController();
 }
@@ -461,8 +461,12 @@ switch ($action) {
     case 'deletePreset':
         $controller->deletePreset();
         break;
-
-
+    case 'runRawSQL':
+        $controller->runRawSQL();
+        break;
+    case 'listSqlPresets':
+        $controller->listSqlPresets();
+        break;
 
 
     default:

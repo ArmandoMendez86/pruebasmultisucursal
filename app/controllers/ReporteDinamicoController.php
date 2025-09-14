@@ -141,4 +141,47 @@ class ReporteDinamicoController
         }
     }
 
+    //Consultas tipo workbench SQL
+
+    public function runRawSQL()
+    {
+        $this->ensureSuper(); // mismo guard que usas para el builder
+        header('Content-Type: application/json');
+
+        if (stripos($_SERVER['CONTENT_TYPE'] ?? '', 'application/json') !== false) {
+            $raw = file_get_contents('php://input');
+            $body = json_decode($raw, true) ?: [];
+            $_POST = array_merge($_POST, $body);
+        }
+
+        $sql = $_POST['sql'] ?? '';
+        $limit = (int) ($_POST['limit'] ?? 1000);
+
+        try {
+            $data = $this->model->runRawSQL($sql, $limit);
+            echo json_encode(['success' => true, 'data' => $data]);
+        } catch (Throwable $e) {
+            http_response_code(400);
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+
+    public function listSqlPresets()
+    {
+        $this->ensureSuper();
+        header('Content-Type: application/json');
+        try {
+            $rows = $this->model->listSqlPresets();
+            echo json_encode(['success' => true, 'data' => $rows]);
+        } catch (Throwable $e) {
+            http_response_code(500);
+            echo json_encode(['success' => false, 'message' => 'Error al listar', 'error' => $e->getMessage()]);
+        }
+    }
+
+
+
 }
