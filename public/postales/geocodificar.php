@@ -9,10 +9,10 @@ set_time_limit(0);
 date_default_timezone_set('America/Mexico_City'); // Ajustar zona horaria
 
 // 1. Configuración de la Base de Datos (MySQL/MariaDB)
-$dbHost = '127.0.0.1'; 
-$dbUser = 'root'; 
-$dbPass = '';     
-$dbName = 'megaparty'; 
+$servername = "localhost";
+$username   = "u111680873_geocode";
+$password   = "Geocode861215#-";
+$dbname     = "u111680873_geocode";
 $logFile = 'geocodificacion_errors.log'; // Archivo de log para errores de API
 
 // 2. URL del servicio de Geocodificación (Nominatim de OpenStreetMap)

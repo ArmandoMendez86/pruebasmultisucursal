@@ -7,9 +7,9 @@ header('Access-Control-Allow-Origin: *');
 
 // --- CONFIGURACIÓN DE CONEXIÓN A LA BASE DE DATOS (AJUSTAR) ---
 $servername = "localhost";
-$username   = "root";
-$password   = "";
-$dbname     = "megaparty";
+$username   = "u111680873_geocode";
+$password   = "Geocode861215#-";
+$dbname     = "u111680873_geocode";
 
 // --- OBTENCIÓN DE PARÁMETROS ---
 $ref_lat = isset($_GET['ref_lat']) ? (float)$_GET['ref_lat'] : null;

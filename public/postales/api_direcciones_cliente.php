@@ -6,9 +6,9 @@ header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 
 $servername = "localhost";
-$username   = "root";
-$password   = "";
-$dbname     = "megaparty";
+$username   = "u111680873_geocode";
+$password   = "Geocode861215#-";
+$dbname     = "u111680873_geocode";
 
 $clienteId = isset($_GET['cliente_id']) ? (int)$_GET['cliente_id'] : 0;
 if ($clienteId <= 0) {

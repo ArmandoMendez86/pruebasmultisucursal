@@ -8,9 +8,9 @@ header('Access-Control-Allow-Origin: *');
 
 // --- CONFIGURACIÓN DE CONEXIÓN A LA BASE DE DATOS (AJUSTAR) ---
 $servername = "localhost";
-$username   = "root";
-$password   = "";
-$dbname     = "megaparty";
+$username   = "u111680873_geocode";
+$password   = "Geocode861215#-";
+$dbname     = "u111680873_geocode";
 
 $term = isset($_GET['term']) ? trim($_GET['term']) : '';
 
