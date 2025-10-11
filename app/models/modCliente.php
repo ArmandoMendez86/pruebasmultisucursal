@@ -238,26 +238,25 @@ class Cliente
 
     public function registrarAbono($idCliente, $monto, $metodoPago, $idUsuario, $detalle = '', $fechaRecibido = '')
     {
-        // 1) Cliente existe
         $cliente = $this->getById($idCliente);
         if (!$cliente) {
             throw new Exception("Cliente no encontrado.");
         }
 
-        // 2) Valida contra el LEDGER (ventas_credito), no contra c.deuda_actual
-        /*    $stLed = $this->conn->prepare("
-           SELECT COALESCE(SUM(saldo_pendiente),0)
-           FROM ventas_credito
-           WHERE id_cliente = :idc AND saldo_pendiente > 0
-       ");
-           $stLed->bindValue(':idc', $idCliente, PDO::PARAM_INT);
-           $stLed->execute();
-           $deudaLedger = (float) $stLed->fetchColumn();
+        /*  $stLed = $this->conn->prepare("
+         SELECT COALESCE(SUM(saldo_pendiente),0)
+         FROM ventas_credito
+         WHERE id_cliente = :idc AND saldo_pendiente > 0
+     ");
+         $stLed->bindValue(':idc', $idCliente, PDO::PARAM_INT);
+         $stLed->execute();
+         $deudaLedger = (float) $stLed->fetchColumn();
 
-           if ($monto > $deudaLedger) {
-               throw new Exception("El monto del abono no puede ser mayor a la deuda actual de $" . number_format($deudaLedger, 2));
-           } */
+         if ($monto > $deudaLedger) {
+             throw new Exception("El monto del abono no puede ser mayor a la deuda actual de $" . number_format($deudaLedger, 2));
+         } */
 
+        // 2) Valida contra la tabla clientes.deuda_actual (lo que el cliente manipula)
         $stTab = $this->conn->prepare("
         SELECT COALESCE(deuda_actual,0)
         FROM clientes
@@ -272,6 +271,7 @@ class Cliente
                 "El monto del abono no puede ser mayor a la deuda actual de $" . number_format($deudaTabla, 2)
             );
         }
+
 
         // 3) Normaliza detalle y fecha
         $detalle = trim((string) $detalle);
@@ -359,7 +359,7 @@ class Cliente
         $stmt_delete = $this->conn->prepare("DELETE FROM " . $this->address_table . " WHERE id_cliente = :id_cliente");
         $stmt_delete->bindParam(':id_cliente', $id_cliente);
         $stmt_delete->execute();
-        $query = "INSERT INTO " . $this->address_table . " (id_cliente, direccion, ciudad, estado, codigo_postal, principal, latitud, longitud) VALUES (:id_cliente, :direccion, :ciudad, :estado, :codigo_postal, :principal, :latitud, :longitud)";
+        $query = "INSERT INTO " . $this->address_table . " (id_cliente, direccion, ciudad, estado, codigo_postal, principal) VALUES (:id_cliente, :direccion, :ciudad, :estado, :codigo_postal, :principal)";
         $stmt_insert = $this->conn->prepare($query);
         foreach ($direcciones as $dir) {
             if (!empty($dir['direccion'])) {
@@ -369,8 +369,6 @@ class Cliente
                 $stmt_insert->bindParam(':estado', $dir['estado']);
                 $stmt_insert->bindParam(':codigo_postal', $dir['codigo_postal']);
                 $stmt_insert->bindParam(':principal', $dir['principal'], PDO::PARAM_BOOL);
-                $stmt_insert->bindParam(':latitud', $dir['latitud']);
-                $stmt_insert->bindParam(':longitud', $dir['longitud']);
                 $stmt_insert->execute();
             }
         }

@@ -77,87 +77,6 @@ document.addEventListener("DOMContentLoaded", function () {
   };
   const autoNumericPriceOptions = { ...autoNumericOptions, currencySymbol: '' };
 
-  // === GEO === Geocodifica una dirección usando Nominatim (con limpieza y fallback)
-  async function geocodeAddressStructured({ direccion, ciudad, estado, codigo_postal }) {
-    // 0) Limpieza básica de 'street'
-    const cleanStreet = (direccion || "")
-      .replace(/\[[^\]]*\]/g, "")     // quita [ ... ]
-      .replace(/\s+\|\s+/g, " ")      // quita ' | '
-      .replace(/\bcol\.?\b/ig, "")    // quita "Col." / "col"
-      .replace(/\s{2,}/g, " ")        // espacios dobles
-      .trim();
-
-    // 1) Params estructurados
-    const params = new URLSearchParams({
-      format: "jsonv2",
-      addressdetails: "0",
-      limit: "1",
-      dedupe: "1",
-      countrycodes: "mx",
-      "accept-language": "es",
-      email: NOMINATIM_EMAIL || ""
-    });
-
-    const hasStructured =
-      (cleanStreet) ||
-      (ciudad && ciudad.trim()) ||
-      (estado && estado.trim()) ||
-      (codigo_postal && codigo_postal.trim());
-
-    if (cleanStreet) params.set("street", cleanStreet);
-    if (ciudad) params.set("city", ciudad);
-    if (estado) params.set("state", estado);
-    if (codigo_postal) params.set("postalcode", codigo_postal);
-
-    // 2) Primer intento: estructurado (si hay algo)
-    let data = [];
-    if (hasStructured) {
-      const r1 = await fetch(`${NOMINATIM_BASE}?${params.toString()}`, { headers: { "x-nominatim": "1" } });
-      if (r1.ok) data = await r1.json(); else { console.warn("Nominatim error", r1.status); }
-    }
-
-    // 3) Fallback: búsqueda libre 'q'
-    if (!Array.isArray(data) || !data.length) {
-      const q = [cleanStreet, ciudad, estado, codigo_postal, "México"].filter(Boolean).join(", ");
-      if (q) {
-        const p2 = new URLSearchParams({
-          format: "jsonv2",
-          q,
-          countrycodes: "mx",
-          limit: "1",
-          dedupe: "1",
-          "accept-language": "es",
-          email: NOMINATIM_EMAIL || ""
-        });
-        const r2 = await fetch(`${NOMINATIM_BASE}?${p2.toString()}`);
-        if (r2.ok) data = await r2.json(); else { console.warn("Nominatim fallback error", r2.status); }
-      }
-    }
-
-    if (!Array.isArray(data) || !data.length) return null;
-    const lat = parseFloat(data[0].lat);
-    const lon = parseFloat(data[0].lon);
-    if (Number.isFinite(lat) && Number.isFinite(lon)) return { lat, lon };
-    return null;
-  }
-
-  // Geocodifica cada dirección y rellena latitud/longitud (como string para no romper tu backend)
-  async function geocodeDirecciones(direcciones) {
-    if (!Array.isArray(direcciones)) return;
-    for (const d of direcciones) {
-      // si ya vienen coords, respétalas
-      if (d.latitud && d.longitud) continue;
-
-      const res = await geocodeAddressStructured(d);
-      d.latitud = res ? String(res.lat) : "";   // deja "" si no hay match
-      d.longitud = res ? String(res.lon) : "";
-
-      // respiro para Nominatim
-      await new Promise(rs => setTimeout(rs, 300));
-    }
-  }
-
-
   // --- Tabs ---
   function switchTab(target) {
     tabContents.forEach(c => c.classList.remove('active'));
@@ -268,7 +187,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const entre2 = row.querySelector('input[name="entre2"]')?.value.trim() || '';
       const refs = row.querySelector('input[name="referencias"]')?.value.trim() || '';
 
-      /* let direccion = dirEl.value.trim();
+      let direccion = dirEl.value.trim();
       const notas = [];
       if (colonia) notas.push(`Col. ${colonia}`);
       if (municipio) notas.push(`Mun. ${municipio}`);
@@ -283,18 +202,7 @@ document.addEventListener("DOMContentLoaded", function () {
         estado,
         codigo_postal: row.querySelector('input[name="codigo_postal"]').value.trim(),
         principal: row.querySelector('input[name="principal"]').checked ? 1 : 0,
-      }); */
-      // Tomar SOLO calle y número (primera línea) y quitar cualquier bloque entre corchetes si existiera
-      let direccion = (dirEl.value || "").split("\n")[0].split("[")[0].trim();
-
-      clientData.direcciones.push({
-        direccion, // limpio
-        ciudad,
-        estado,
-        codigo_postal: row.querySelector('input[name="codigo_postal"]').value.trim(),
-        principal: row.querySelector('input[name="principal"]').checked ? 1 : 0,
       });
-
     });
 
     clientData.precios = {};
@@ -306,22 +214,6 @@ document.addEventListener("DOMContentLoaded", function () {
     clientData.id_tipo = clientData.id_tipo && !isNaN(clientData.id_tipo) ? clientData.id_tipo : "1";
     clientData.obs_envio = (document.getElementById("obs_envio")?.value || "").trim();
 
-    // --- LOG opcional ---
-    console.log("Cliente ANTES de geocodificar:", JSON.parse(JSON.stringify(clientData)));
-
-    // Validaciones mínimas antes de geocodificar
-    clientData.direcciones = clientData.direcciones.filter(d => {
-      const okStreet = (d.direccion || "").trim().length > 0;      // calle y número
-      const okCP = /^\d{5}$/.test(d.codigo_postal || "");           // CP 5 dígitos
-      const okLoc = (d.ciudad && d.ciudad.trim()) || (d.estado && d.estado.trim()); // ciudad o estado
-      return okStreet && okCP && okLoc;
-    });
-
-    await geocodeDirecciones(clientData.direcciones);
-
-
-    // --- LOG opcional para verificar ---
-    console.log("Cliente DESPUÉS de geocodificar:", JSON.parse(JSON.stringify(clientData)));
 
     const url = clientData.id ? `${BASE_URL}/updateClient` : `${BASE_URL}/createClient`;
     try {
@@ -550,8 +442,8 @@ document.addEventListener("DOMContentLoaded", function () {
     row.innerHTML = `
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="md:col-span-2 relative direccion-wrapper">
-         <label class="text-sm font-medium text-[var(--color-text-secondary)]">Calle y número</label>
-          <textarea name="direccion" class="mt-1 w-full bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]" rows="3">${(data.direccion || "").replace(/\s*\[[^\]]*\]\s*$/, "")}</textarea>
+          <label class="text-sm font-medium text-[var(--color-text-secondary)]">Dirección Completa</label>
+          <textarea name="direccion" class="mt-1 w-full bg-[var(--color-bg-secondary)] rounded-md p-2 border border-[var(--color-border)] focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]" rows="3">${data.direccion || ""}</textarea>
           <div class="address-suggestions hidden absolute left-0 right-0 max-h-56 overflow-auto bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-md shadow-md z-50"></div>
         </div>
 
