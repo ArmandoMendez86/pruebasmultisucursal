@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Búsqueda de Proximidad de Clientes (Visual)</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v7.3.0/ol.css">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f2f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+            color: #333;
+        }
+
+        .mode-switch {
+            display: flex;
+            margin-bottom: 30px;
+            background-color: #e9e9e9;
+            border-radius: 12px;
+            padding: 4px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .toggle-option {
+            position: relative;
+            padding: 0;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #555;
+            transition: all 0.3s ease;
+            flex-grow: 1;
+            text-align: center;
+        }
+
+        .toggle-option input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+            height: 0;
+            width: 0;
+        }
+
+        .toggle-option span {
+            display: block;
+            padding: 10px 15px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            user-select: none;
+        }
+
+        .toggle-option input[type="radio"]:checked+span {
+            background-color: #007bff;
+            color: white;
+            box-shadow: 0 1px 4px rgba(0, 123, 255, 0.4);
+            font-weight: 600;
+        }
+
+        .toggle-option:hover span {
+            color: #007bff;
+        }
+
+        .toggle-option input[type="radio"]:checked+span:hover {
+            color: white;
+        }
+
+        .main-controls-wrapper {
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+            margin-bottom: 25px;
+        }
+
+        .input-group-row {
+            display: flex;
+            gap: 20px;
+            align-items: flex-end;
+            margin-bottom: 15px;
+        }
+
+        .button-action-row {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            justify-content: flex-start;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        #radio-km {
+            width: 100px;
+        }
+
+        .control-group input[type="number"],
+        .control-group select {
+            padding: 8px 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            transition: border-color 0.3s;
+        }
+
+        .control-group input[type="number"]:focus,
+        .control-group select:focus {
+            border-color: #007bff;
+            outline: none;
+        }
+
+        .action-button {
+            padding: 10px 25px;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: background-color 0.2s, transform 0.1s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        #btn-buscar {
+            background-color: #007bff;
+            color: white;
+        }
+
+        #btn-buscar:hover:not(:disabled) {
+            background-color: #0056b3;
+            transform: translateY(-1px);
+        }
+
+        #btn-buscar:disabled {
+            background-color: #a0c3e9;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        #btn-restablecer {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        #btn-restablecer:hover {
+            background-color: #5a6268;
+            transform: translateY(-1px);
+        }
+
+        .map-container {
+            height: 500px;
+            width: 100%;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        #coordenadas-display {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            padding: 10px 15px;
+            border-left: 5px solid #007bff;
+            background-color: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            font-size: 13px;
+            color: #333;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        }
+
+        #results-container {
+            margin-top: 20px;
+        }
+
+        #results-container h3 {
+            margin-bottom: 10px;
+        }
+
+        #table-scroll-container {
+            max-height: 260px;
+            overflow-y: auto;
+            border: 1px solid #eaeaea;
+            border-radius: 8px;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .results-table th,
+        .results-table td {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .results-table th {
+            background: #f5f7fb;
+            text-align: left;
+        }
+
+        .hidden-control {
+            display: none;
+        }
+
+        /* Panel de direcciones del cliente */
+        #panel-direcciones {
+            margin: 15px 0 10px;
+        }
+
+        #lista-direcciones button {
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 1px solid #cfe3ff;
+            background: #eef5ff;
+            color: #0b63c5;
+            white-space: nowrap;
+        }
+
+        #lista-direcciones {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .select2-container .select2-selection--single {
+            height: 36px;
+        }
+
+        .select2-selection__rendered {
+            line-height: 36px !important;
+        }
+
+        .select2-selection__arrow {
+            height: 36px !important;
+        }
+
+        /* NUEVO: chip de dirección seleccionado */
+        #lista-direcciones button.addr-selected {
+            background: #0b63c5;
+            color: #fff;
+            border-color: #0b63c5;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h2>Búsqueda de Proximidad de Clientes (Doble Modo)</h2>
+
+        <div class="mode-switch">
+            <label class="toggle-option">
+                <input type="radio" name="search-mode" value="cliente" checked>
+                <span>1. Buscar por Cliente Registrado</span>
+            </label>
+            <label class="toggle-option">
+                <input type="radio" name="search-mode" value="cp">
+                <span>2. Buscar por Dirección o CP (Autocompletado)</span>
+            </label>
+        </div>
+
+        <div class="main-controls-wrapper">
+            <div class="input-group-row">
+                <div class="control-group" id="group-cliente" style="width: 400px;">
+                    <label for="cliente-origen">Cliente de Referencia:</label>
+                    <select id="cliente-origen" style="width: 100%;"></select>
+                </div>
+
+                <div class="control-group hidden-control" id="group-cp" style="width: 400px;">
+                    <label for="input-cp-select">Código Postal o Dirección (Autocompletado):</label>
+                    <select id="input-cp-select" style="width: 100%;"></select>
+                </div>
+
+                <div class="control-group">
+                    <label for="radio-km">Radio (Km):</label>
+                    <input type="number" id="radio-km" value="10" min="1">
+                </div>
+            </div>
+
+            <!-- PANEL DE DIRECCIONES DEL CLIENTE -->
+            <div id="panel-direcciones" class="hidden-control">
+                <div style="font-weight:600;margin-bottom:8px;">Direcciones del cliente</div>
+                <div id="lista-direcciones"></div>
+                <small style="display:block;margin-top:6px;color:#666;">
+                    Haz clic en una dirección para usarla como origen y ver cercanos.
+                </small>
+            </div>
+
+            <div class="button-action-row">
+                <button id="btn-buscar" class="action-button" title="Debe seleccionar un origen y un radio.">
+                    Buscar Cercanos
+                </button>
+
+                <button id="btn-restablecer" class="action-button" title="Reinicia la búsqueda y limpia el mapa.">
+                    Restablecer Búsqueda
+                </button>
+            </div>
+        </div>
+
+        <div id="map" class="map-container">
+            <span id="coordenadas-display"></span>
+        </div>
+
+        <div id="results-container">
+            <h3>Resultados de Proximidad (<span id="count-results">0</span> Clientes Encontrados)</h3>
+            <div id="table-scroll-container">
+                <table class="results-table" id="tabla-resultados">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Cliente</th>
+                            <th>Distancia (Km)</th>
+                            <th>CP</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ol@v7.3.0/dist/ol.js"></script>
+
+    <script>
+        // ===================== VARIABLES GLOBALES =====================
+        let map, view, originLayer, destinationLayer, circleLayer, lineLayer, clientAddressesLayer;
+        let originCoordinates = null;
+        let selectedClienteId = null;
+        let selectedClienteName = '';
+        let selectedGeocodeCoords = null;
+        let selectedGeocodeName = '';
+        let currentSearchMode = 'cliente';
+        const initialCenter = ol.proj.fromLonLat([-102.00, 24.00]); // Centro de México
+        const initialZoom = 5;
+
+        function truncateText(text, max = 20) {
+            return (text && text.length > max) ? text.substring(0, max - 3) + '...' : text;
+        }
+
+        // ===================== ESTILOS =====================
+        const originStyle = new ol.style.Style({
+            image: new ol.style.Circle({
+                radius: 12,
+                fill: new ol.style.Fill({ color: 'rgba(255, 0, 0, 0.95)' }),
+                stroke: new ol.style.Stroke({ color: 'rgba(255, 255, 255, 1)', width: 4 })
+            }),
+            text: new ol.style.Text({
+                text: 'Origen',
+                font: 'bold 14px sans-serif',
+                offsetY: 20,
+                fill: new ol.style.Fill({ color: 'red' }),
+                stroke: new ol.style.Stroke({ color: 'white', width: 3 })
+            })
+        });
+
+        function createDestinationStyle(clienteName) {
+            return new ol.style.Style({
+                image: new ol.style.Circle({
+                    radius: 6,
+                    fill: new ol.style.Fill({ color: 'rgba(0, 150, 0, 0.9)' }),
+                    stroke: new ol.style.Stroke({ color: 'white', width: 1.5 })
+                }),
+                text: new ol.style.Text({
+                    text: truncateText(clienteName, 20),
+                    font: '10px sans-serif',
+                    offsetY: -15,
+                    fill: new ol.style.Fill({ color: '#333' }),
+                    stroke: new ol.style.Stroke({ color: 'rgba(255, 255, 255, 0.8)', width: 3 })
+                })
+            });
+        }
+
+        const circleStyle = new ol.style.Style({
+            stroke: new ol.style.Stroke({ color: 'rgba(0, 0, 255, 0.8)', width: 2, lineDash: [10, 5] }),
+            fill: new ol.style.Fill({ color: 'rgba(0, 0, 255, 0.05)' })
+        });
+
+        const lineStyle = new ol.style.Style({
+            stroke: new ol.style.Stroke({ color: 'rgba(0,0,0,0.4)', width: 1, lineDash: [6, 4] })
+        });
+
+        const addressStyle = new ol.style.Style({
+            image: new ol.style.Circle({
+                radius: 7,
+                fill: new ol.style.Fill({ color: 'rgba(0, 102, 204, 0.9)' }),
+                stroke: new ol.style.Stroke({ color: 'white', width: 2 })
+            })
+        });
+        const addressStylePrincipal = new ol.style.Style({
+            image: new ol.style.Circle({
+                radius: 8,
+                fill: new ol.style.Fill({ color: 'rgba(218, 165, 32, 0.95)' }),
+                stroke: new ol.style.Stroke({ color: 'white', width: 2.5 })
+            })
+        });
+
+        // ===================== MAPA =====================
+        function initializeMap() {
+            const sourceOrigin = new ol.source.Vector();
+            const sourceDestination = new ol.source.Vector();
+            const sourceCircle = new ol.source.Vector();
+            const sourceLine = new ol.source.Vector();
+            const sourceClientAddresses = new ol.source.Vector();
+
+            originLayer = new ol.layer.Vector({ source: sourceOrigin });
+            destinationLayer = new ol.layer.Vector({ source: sourceDestination });
+            circleLayer = new ol.layer.Vector({ source: sourceCircle });
+            lineLayer = new ol.layer.Vector({ source: sourceLine });
+            clientAddressesLayer = new ol.layer.Vector({ source: sourceClientAddresses });
+
+            map = new ol.Map({
+                target: 'map',
+                layers: [
+                    new ol.layer.Tile({ source: new ol.source.OSM() }),
+                    circleLayer, lineLayer, destinationLayer, clientAddressesLayer, originLayer
+                ],
+                view: (view = new ol.View({ center: initialCenter, zoom: initialZoom }))
+            });
+
+            // Popup simple para origen/destinos
+            const popupContainer = document.createElement('div');
+            popupContainer.style.cssText = 'background:#fff;padding:8px 10px;border-radius:8px;border:1px solid #ddd;min-width:160px';
+            const popupContent = document.createElement('div');
+            popupContainer.appendChild(popupContent);
+            document.body.appendChild(popupContainer);
+            const overlay = new ol.Overlay({ element: popupContainer, autoPan: { animation: { duration: 250 } } });
+            map.addOverlay(overlay);
+
+            map.on('click', function (evt) {
+                const feature = map.forEachFeatureAtPixel(evt.pixel, function (f) {
+                    if (f.get('tipo') === 'origen' || f.get('tipo') === 'destino' || f.get('tipo') === 'addr_cliente') return f;
+                });
+                overlay.setPosition(undefined);
+                if (feature) {
+                    const coordinates = feature.getGeometry().getCoordinates();
+                    const data = feature.getProperties();
+                    let html = `<strong>${data.nombre || data.etiqueta || 'Punto'}</strong>`;
+                    if (data.tipo === 'origen') {
+                        html += '<br><span style="color: red;">PUNTO DE REFERENCIA</span>';
+                    } else if (data.tipo === 'destino' && data.distancia) {
+                        html += `<br>Distancia: <strong>${data.distancia} Km</strong>`;
+                        if (data.cp) html += `<br>CP: ${data.cp}`;
+                    } else if (data.tipo === 'addr_cliente') {
+                        html += data.principal ? '<br>(Dirección principal)' : '';
+                    }
+                    popupContent.innerHTML = html;
+                    overlay.setPosition(coordinates);
+                }
+            });
+        }
+
+        // ===================== UTILIDADES UI/MAPA =====================
+        function setOriginMarker(coords, nombre) {
+            originLayer.getSource().clear();
+            const feature = new ol.Feature({
+                geometry: new ol.geom.Point(coords),
+                nombre: nombre || 'Origen',
+                tipo: 'origen'
+            });
+            feature.setStyle(originStyle);
+            originLayer.getSource().addFeature(feature);
+        }
+
+        function drawSearchCircle(center, radiusKm) {
+            circleLayer.getSource().clear();
+            if (!center || !radiusKm || radiusKm <= 0) return;
+            const meters = radiusKm * 1000;
+            const circle = new ol.geom.Circle(center, meters / Math.cos(view.getRotation() || 0));
+            const feature = new ol.Feature(circle);
+            feature.setStyle(circleStyle);
+            circleLayer.getSource().addFeature(feature);
+        }
+
+        function clearMapResults() {
+            destinationLayer.getSource().clear();
+            lineLayer.getSource().clear();
+            circleLayer.getSource().clear();
+            $('#tabla-resultados tbody').empty();
+            $('#count-results').text('0');
+        }
+        function clearOriginState() {
+            originLayer.getSource().clear();
+            originCoordinates = null;
+            $('#coordenadas-display').text('');
+        }
+        function clearClientAddresses() {
+            clientAddressesLayer.getSource().clear();
+            $('#lista-direcciones').empty();
+            $('#panel-direcciones').addClass('hidden-control');
+        }
+
+        function updateOriginInfo(lat, lon, label) {
+            $('#coordenadas-display').text(`${label} → Lat: ${lat.toFixed(6)} / Lon: ${lon.toFixed(6)}`);
+        }
+
+        // ===================== SELECT2: CLIENTE =====================
+        function initializeSelect2Cliente() {
+            const $selectCliente = $('#cliente-origen');
+
+            $selectCliente.select2({
+                placeholder: 'Escribe el nombre del cliente de referencia.',
+                minimumInputLength: 3,
+                ajax: {
+                    url: 'select2_clientes.php',
+                    dataType: 'json',
+                    delay: 250,
+                    data: function (params) { return { term: params.term }; },
+                    processResults: function (data) { return data; },
+                    cache: true
+                },
+                escapeMarkup: function (markup) { return markup; },
+                templateSelection: function (data) {
+                    return data.text ? data.text.split('<span')[0] : data.text;
+                }
+            });
+
+            $selectCliente.on('select2:open', function () {
+                setTimeout(function () {
+                    const searchInput = document.querySelector('.select2-container--open .select2-search__field');
+                    if (searchInput) searchInput.focus();
+                }, 10);
+            });
+
+            $selectCliente.on('select2:select', function (e) {
+                const data = e.params.data;
+                // Limpiar resultados y direcciones anteriores
+                clearResults(false);
+                selectedClienteId = data.id;
+                selectedClienteName = (data.text ? data.text.split('<span')[0] : '').trim();
+
+                // Centrar el mapa con la coordenada de referencia (si vino)
+                if (data.lat && data.lon) {
+                    const lon = parseFloat(data.lon), lat = parseFloat(data.lat);
+                    view.animate({ center: ol.proj.fromLonLat([lon, lat]), zoom: 12, duration: 800 });
+                }
+
+                // Traer y mostrar TODAS las direcciones del cliente
+                fetchAndRenderClientAddresses(selectedClienteId, selectedClienteName);
+            });
+        }
+
+        // ===================== SELECT2: CP/Dirección =====================
+        function initializeSelect2Geocode() {
+            const $selectCP = $('#input-cp-select');
+
+            $selectCP.select2({
+                placeholder: 'Escribe CP, dirección o ciudad para buscar.',
+                minimumInputLength: 3,
+                language: { inputTooShort: function () { return 'Escribe al menos 3 caracteres para buscar direcciones.'; } },
+                ajax: {
+                    url: 'api_autosuggest.php',
+                    dataType: 'json',
+                    delay: 350,
+                    data: function (params) { return { term: params.term }; },
+                    processResults: function (data) { return data; },
+                    cache: true
+                },
+                templateSelection: function (data) { return data.text || data.id; }
+            });
+
+            $selectCP.on('select2:open', function () {
+                setTimeout(function () {
+                    const searchInput = document.querySelector('.select2-container--open .select2-search__field');
+                    if (searchInput) searchInput.focus();
+                }, 10);
+            });
+
+            $selectCP.on('select2:select', function (e) {
+                const data = e.params.data;
+                clearResults(false);
+                if (data.lat && data.lon) {
+                    const lon = parseFloat(data.lon);
+                    const lat = parseFloat(data.lat);
+                    originCoordinates = ol.proj.fromLonLat([lon, lat]);
+                    selectedGeocodeCoords = { lat, lon };
+                    selectedGeocodeName = data.text;
+                    selectedClienteId = null;
+
+                    updateOriginInfo(lat, lon, selectedGeocodeName);
+                    setOriginMarker(originCoordinates, selectedGeocodeName);
+                    view.animate({ center: originCoordinates, zoom: 12, duration: 800 });
+                } else {
+                    console.warn('La dirección seleccionada no tiene coordenadas válidas.');
+                    clearOriginState();
+                }
+            });
+        }
+
+        // ===================== DIRECCIONES DEL CLIENTE =====================
+        function fetchAndRenderClientAddresses(clienteId, clienteName) {
+            clearClientAddresses();
+
+            $.ajax({
+                url: 'api_direcciones_cliente.php',
+                data: { cliente_id: clienteId },
+                dataType: 'json',
+                success: function (resp) {
+                    if (!resp.success) {
+                        console.warn('No se pudieron obtener direcciones:', resp.error);
+                        return;
+                    }
+                    const list = resp.data || [];
+                    if (!list.length) return;
+
+                    $('#panel-direcciones').removeClass('hidden-control');
+
+                    list.forEach((dir) => {
+                        const coords = ol.proj.fromLonLat([dir.lon, dir.lat]);
+                        const f = new ol.Feature({
+                            geometry: new ol.geom.Point(coords),
+                            tipo: 'addr_cliente',
+                            nombre: clienteName,
+                            etiqueta: dir.etiqueta,
+                            principal: !!dir.principal,
+                            raw: dir
+                        });
+                        f.setStyle(dir.principal ? addressStylePrincipal : addressStyle);
+                        clientAddressesLayer.getSource().addFeature(f);
+
+                        const $chip = $(
+                            `<button type="button">${dir.principal ? '⭐ ' : ''}${dir.etiqueta}</button>`
+                        );
+                        $chip.on('click', function () {
+                            // NUEVO: marcar visualmente la dirección seleccionada
+                            $('#lista-direcciones button').removeClass('addr-selected');
+                            $chip.addClass('addr-selected');
+                            // Establecer esta dirección como ORIGEN y buscar
+                            originCoordinates = ol.proj.fromLonLat([dir.lon, dir.lat]);
+                            selectedGeocodeCoords = { lat: dir.lat, lon: dir.lon };
+                            selectedGeocodeName = `${clienteName} · ${dir.etiqueta}`;
+                            setOriginMarker(originCoordinates, selectedGeocodeName);
+                            updateOriginInfo(dir.lat, dir.lon, selectedGeocodeName);
+                            view.animate({ center: originCoordinates, zoom: 13, duration: 600 });
+                            handleSearch(); // dispara búsqueda de cercanos
+                        });
+                        $('#lista-direcciones').append($chip);
+                    });
+
+                    // Ajustar vista a todas las direcciones
+                    const feats = clientAddressesLayer.getSource().getFeatures();
+                    if (feats.length) {
+                        let extent = feats[0].getGeometry().getExtent().slice();
+                        feats.forEach(f => ol.extent.extend(extent, f.getGeometry().getExtent()));
+                        view.fit(extent, { padding: [40, 40, 40, 40], duration: 700, maxZoom: 15 });
+                    }
+                },
+                error: function (xhr) {
+                    console.error('Error al cargar direcciones del cliente', xhr);
+                }
+            });
+        }
+
+        // ===================== CONTROL Y SWITCH =====================
+        function initializeControls() {
+            initializeSelect2Cliente();
+            initializeSelect2Geocode();
+
+            $('input[name="search-mode"]').on('change', function () {
+                currentSearchMode = $(this).val();
+                clearResults(true);
+                if (currentSearchMode === 'cliente') {
+                    $('#input-cp-select').val(null).trigger('change');
+                    $('#group-cliente').removeClass('hidden-control');
+                    $('#group-cp').addClass('hidden-control');
+                } else {
+                    $('#cliente-origen').val(null).trigger('change');
+                    $('#group-cliente').addClass('hidden-control');
+                    $('#group-cp').removeClass('hidden-control');
+                }
+            });
+
+            $('#btn-buscar').on('click', handleSearch);
+            $('#btn-restablecer').on('click', handleReset);
+        }
+
+        // ===================== BUSCAR CERCANOS =====================
+        async function handleSearch() {
+            const radioKm = parseFloat($('#radio-km').val());
+            if (isNaN(radioKm) || radioKm <= 0) {
+                alert('El radio de búsqueda debe ser un número positivo (en Km).');
+                return;
+            }
+
+            const $btn = $('#btn-buscar');
+            $btn.prop('disabled', true).text('Procesando Origen...');
+            clearMapResults();
+
+            let lat = null, lon = null, refId = null;
+
+            if (currentSearchMode === 'cliente') {
+                // Debe existir un cliente y un origen (elegido al hacer clic en una dirección)
+                if (!originCoordinates || selectedClienteId === null) {
+                    alert('Selecciona un cliente y haz clic en una de sus direcciones para usarla como origen.');
+                    $btn.prop('disabled', false).text('Buscar Cercanos');
+                    return;
+                }
+                [lon, lat] = ol.proj.toLonLat(originCoordinates);
+                refId = selectedClienteId; // excluye al cliente de referencia si así se desea en la API
+            } else if (currentSearchMode === 'cp') {
+                if (!originCoordinates || !selectedGeocodeCoords) {
+                    alert('Selecciona una Dirección/CP del autocompletado.');
+                    $btn.prop('disabled', false).text('Buscar Cercanos');
+                    return;
+                }
+                lat = selectedGeocodeCoords.lat;
+                lon = selectedGeocodeCoords.lon;
+            }
+
+            $btn.text('Buscando Clientes...');
+            drawSearchCircle(originCoordinates, radioKm);
+
+            try {
+                const params = new URLSearchParams({
+                    ref_lat: lat,
+                    ref_lon: lon,
+                    radio_km: radioKm,
+                    ref_id: refId !== null ? refId : ''
+                });
+                const resp = await fetch('api_proximidad.php?' + params.toString());
+                const json = await resp.json();
+                if (!json.success) throw new Error(json.error || 'Error en API');
+
+                renderResults(json.data || []);
+            } catch (err) {
+                console.error(err);
+                alert('Ocurrió un error al consultar la proximidad.');
+            } finally {
+                $btn.prop('disabled', false).text('Buscar Cercanos');
+            }
+        }
+
+        function renderResults(lista) {
+            const tbody = $('#tabla-resultados tbody');
+            const sourceDestination = destinationLayer.getSource();
+            const sourceLine = lineLayer.getSource();
+
+            tbody.empty();
+            sourceDestination.clear();
+            sourceLine.clear();
+
+            $('#count-results').text(lista.length.toString());
+
+            const originPoint = originCoordinates;
+
+            lista.forEach((cliente, index) => {
+                const distance = (cliente.distancia_km !== undefined && cliente.distancia_km !== null)
+                    ? parseFloat(cliente.distancia_km).toFixed(2)
+                    : '';
+
+                const coords = ol.proj.fromLonLat([parseFloat(cliente.longitud), parseFloat(cliente.latitud)]);
+
+                const row = `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${cliente.nombre_cliente}</td>
+                    <td>${distance}</td>
+                    <td>${cliente.codigo_postal ?? ''}</td>
+                    <td>${cliente.estado ?? ''}</td>
+                </tr>
+            `;
+                tbody.append(row);
+
+                const feature = new ol.Feature({
+                    geometry: new ol.geom.Point(coords),
+                    nombre: cliente.nombre_cliente,
+                    distancia: distance,
+                    cp: cliente.codigo_postal,
+                    tipo: 'destino'
+                });
+                feature.setStyle(createDestinationStyle(cliente.nombre_cliente));
+                sourceDestination.addFeature(feature);
+
+                const line = new ol.geom.LineString([originPoint, coords]);
+                const lineFeature = new ol.Feature({ geometry: line, tipo: 'line' });
+                lineFeature.setStyle(lineStyle);
+                sourceLine.addFeature(lineFeature);
+            });
+
+            const allFeatures = sourceDestination.getFeatures().concat(originLayer.getSource().getFeatures());
+            if (allFeatures.length > 0) {
+                let extent = circleLayer.getSource().getExtent();
+                if (ol.extent.isEmpty(extent)) {
+                    extent = allFeatures[0].getGeometry().getExtent().slice();
+                }
+                allFeatures.forEach(f => ol.extent.extend(extent, f.getGeometry().getExtent()));
+                view.fit(extent, { padding: [50, 50, 50, 50], duration: 1000, maxZoom: 14 });
+            } else if (originCoordinates) {
+                view.animate({ center: originCoordinates, zoom: 12, duration: 800 });
+            }
+        }
+
+        // ===================== RESET =====================
+        function clearResults(clearOrigin = true) {
+            clearMapResults();
+            clearClientAddresses();
+            if (clearOrigin) clearOriginState();
+        }
+        function handleReset() {
+            $('#cliente-origen').val(null).trigger('change');
+            $('#input-cp-select').val(null).trigger('change');
+            $('input[name="search-mode"][value="cliente"]').prop('checked', true).trigger('change');
+            clearResults(true);
+            $('#radio-km').val('50');
+            view.animate({ center: initialCenter, zoom: initialZoom, duration: 800 });
+        }
+
+        // ===================== INICIO =====================
+        $(document).ready(function () {
+            initializeMap();
+            initializeControls();
+        });
+    </script>
+</body>
+
+</html>
