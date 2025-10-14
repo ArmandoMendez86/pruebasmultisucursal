@@ -4,8 +4,8 @@
 // =========== CREDENCIALES BASE DE DATOS PRINCIPAL ===========
 define('DB_HOST', 'localhost');
 define('DB_USER', 'root');
-define('DB_PASSWORD', 'linux');
-define('DB_NAME', 'pruebas_mega');
+define('DB_PASSWORD', '');
+define('DB_NAME', 'megaparty');
 define('DB_CHARSET', 'utf8mb4');
 
 

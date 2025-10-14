@@ -79,16 +79,19 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // === GEO === Geocodifica una dirección usando Nominatim (con limpieza y fallback)
   async function geocodeAddressStructured({ direccion, ciudad, estado, codigo_postal }) {
-    // 0) Limpieza básica de 'street'
+    // 0) Limpieza avanzada de 'street'
     const cleanStreet = (direccion || "")
-      .replace(/\[[^\]]*\]/g, "")     // quita [ ... ]
-      .replace(/\s+\|\s+/g, " ")      // quita ' | '
-      .replace(/\bcol\.?\b/ig, "")    // quita "Col." / "col"
-      .replace(/\s{2,}/g, " ")        // espacios dobles
+      .replace(/\[[^\]]*\]/g, "")      // 1. Quita [ ... ]
+      .replace(/\s+\|\s+/g, " ")      // 2. Quita ' | '
+      .replace(/\bcol\.?\b/ig, "")     // 3. Quita "Col." / "col" (ya lo tenías)
+      .replace(/\s{2,}/g, " ")         // 4. Espacios dobles
+      // --- NUEVAS REGLAS DE LIMPIEZA PARA NOMINATIM ---
+      .replace(/\b(núm|num|no|#)\b/ig, "") // 5. Quita abreviaturas de número (ej: "Num. 123" -> "123")
+      .replace(/,\s?.*$/ig, "")        // 6. ¡CRUCIAL! Quita todo después de la primera coma
       .trim();
 
-    // 1) Params estructurados
-    const params = new URLSearchParams({
+    // 1) Intentos: Definición de parámetros
+    const baseParams = {
       format: "jsonv2",
       addressdetails: "0",
       limit: "1",
@@ -96,48 +99,63 @@ document.addEventListener("DOMContentLoaded", function () {
       countrycodes: "mx",
       "accept-language": "es",
       email: NOMINATIM_EMAIL || ""
-    });
+    };
 
-    const hasStructured =
-      (cleanStreet) ||
-      (ciudad && ciudad.trim()) ||
-      (estado && estado.trim()) ||
-      (codigo_postal && codigo_postal.trim());
+    // --- PRIMER INTENTO: ESTRUCTURADO Y COMPLETO ---
+    let params1 = new URLSearchParams(baseParams);
 
-    if (cleanStreet) params.set("street", cleanStreet);
-    if (ciudad) params.set("city", ciudad);
-    if (estado) params.set("state", estado);
-    if (codigo_postal) params.set("postalcode", codigo_postal);
+    // Si la calle no contiene un número, es muy probable que falle.
+    // Nominatim prefiere que el número de casa esté en el campo 'street' junto a la calle.
+    if (cleanStreet) params1.set("street", cleanStreet);
+    if (codigo_postal) params1.set("postalcode", codigo_postal);
+    if (ciudad) params1.set("city", ciudad);
+    if (estado) params1.set("state", estado);
 
-    // 2) Primer intento: estructurado (si hay algo)
     let data = [];
-    if (hasStructured) {
-      const r1 = await fetch(`${NOMINATIM_BASE}?${params.toString()}`, { headers: { "x-nominatim": "1" } });
-      if (r1.ok) data = await r1.json(); else { console.warn("Nominatim error", r1.status); }
+    if (cleanStreet && codigo_postal) { // Solo si tenemos CALLE y CP, intentamos la búsqueda estructurada
+      const r1 = await fetch(`${NOMINATIM_BASE}?${params1.toString()}`, { headers: { "x-nominatim": "1" } });
+      if (r1.ok) data = await r1.json(); else { console.warn("Nominatim error (Intento 1)", r1.status); }
     }
 
-    // 3) Fallback: búsqueda libre 'q'
+    // --- SEGUNDO INTENTO (FALLBACK): BÚSQUEDA LIBRE CON LA MÁXIMA INFORMACIÓN ---
     if (!Array.isArray(data) || !data.length) {
-      const q = [cleanStreet, ciudad, estado, codigo_postal, "México"].filter(Boolean).join(", ");
+      const q = [
+        cleanStreet,
+        codigo_postal, // Ponemos el CP primero para anclar la búsqueda
+        ciudad,
+        estado,
+        "México"
+      ].filter(Boolean).join(", ");
+
       if (q) {
-        const p2 = new URLSearchParams({
-          format: "jsonv2",
-          q,
-          countrycodes: "mx",
-          limit: "1",
-          dedupe: "1",
-          "accept-language": "es",
-          email: NOMINATIM_EMAIL || ""
-        });
+        const p2 = new URLSearchParams(baseParams);
+        p2.set("q", q);
+
         const r2 = await fetch(`${NOMINATIM_BASE}?${p2.toString()}`);
-        if (r2.ok) data = await r2.json(); else { console.warn("Nominatim fallback error", r2.status); }
+        if (r2.ok) data = await r2.json(); else { console.warn("Nominatim fallback error (Intento 2)", r2.status); }
       }
     }
 
+    // --- TERCER INTENTO (AGRESIVO): SOLO CALLE Y CÓDIGO POSTAL ---
+    // Este intento es útil si la ciudad o estado ingresados son incorrectos o ambiguos.
+    if (!Array.isArray(data) || !data.length) {
+      const q_cp_only = [cleanStreet, codigo_postal, "México"].filter(Boolean).join(", ");
+      if (q_cp_only) {
+        const p3 = new URLSearchParams(baseParams);
+        p3.set("q", q_cp_only);
+
+        const r3 = await fetch(`${NOMINATIM_BASE}?${p3.toString()}`);
+        if (r3.ok) data = await r3.json(); else { console.warn("Nominatim fallback error (Intento 3)", r3.status); }
+      }
+    }
+
+
+    // 4) Retorno de coordenadas
     if (!Array.isArray(data) || !data.length) return null;
     const lat = parseFloat(data[0].lat);
     const lon = parseFloat(data[0].lon);
-    if (Number.isFinite(lat) && Number.isFinite(lon)) return { lat, lon };
+
+    if (Number.isFinite(lat) && Number.isFinite(lon)) return { latitud: lat, longitud: lon };
     return null;
   }
 
@@ -149,8 +167,8 @@ document.addEventListener("DOMContentLoaded", function () {
       if (d.latitud && d.longitud) continue;
 
       const res = await geocodeAddressStructured(d);
-      d.latitud = res ? String(res.lat) : "";   // deja "" si no hay match
-      d.longitud = res ? String(res.lon) : "";
+      d.latitud = res ? String(res.latitud) : "";   // deja "" si no hay match
+      d.longitud = res ? String(res.longitud) : "";
 
       // respiro para Nominatim
       await new Promise(rs => setTimeout(rs, 300));
@@ -318,6 +336,16 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     await geocodeDirecciones(clientData.direcciones);
+
+     // 2. Revisión y Alerta (Agregar este bloque si no lo tienes)
+    for (const d of clientData.direcciones) {
+        if (d.latitud && d.latitud !== "0" && d.latitud !== "") {
+            showToast("✅ Coordenadas obtenidas para la dirección: " + d.direccion, "success");
+        } else {
+            // Asumiendo que latitud está vacío ("") si no se encontró
+            showToast("⚠️ ATENCIÓN: No se encontraron coordenadas para la dirección: " + d.direccion, "warning");
+        }
+    }
 
 
     // --- LOG opcional para verificar ---
@@ -542,6 +570,19 @@ document.addEventListener("DOMContentLoaded", function () {
     document.addEventListener('click', (e) => { if (!wrapper.contains(e.target)) hide(); });
   }
 
+  /*  <div class="md:col-span-2">
+           <label class="text-sm font-medium text-[var(--color-text-secondary)]">Entre calles</label>
+           <div class="grid grid-cols-2 gap-2">
+             <input type="text" name="entre1" placeholder="Calle 1" class="mt-1 w-full bg-[var(--color-bg-secondary)] rounded-md p-2 border border-[var(--color-border)] focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]">
+             <input type="text" name="entre2" placeholder="Calle 2" class="mt-1 w-full bg-[var(--color-bg-secondary)] rounded-md p-2 border border-[var(--color-border)] focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]">
+           </div>
+         </div>
+ 
+         <div class="md:col-span-2">
+           <label class="text-sm font-medium text-[var(--color-text-secondary)]">Referencias</label>
+           <input type="text" name="referencias" placeholder="Punto de referencia, color de fachada, etc." class="mt-1 w-full bg-[var(--color-bg-secondary)] rounded-md p-2 border border-[var(--color-border)] focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]">
+         </div> */
+
   // --- UI de dirección (con selects) ---
   function addAddressRow(data = {}) {
     const row = document.createElement("div");
@@ -583,19 +624,6 @@ document.addEventListener("DOMContentLoaded", function () {
           <input type="text" name="municipio" value="${data.municipio || ""}" class="mt-1 w-full bg-[var(--color-bg-secondary)] rounded-md p-2 border border-[var(--color-border)] focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]">
         </div>
 
-        <div class="md:col-span-2">
-          <label class="text-sm font-medium text-[var(--color-text-secondary)]">Entre calles</label>
-          <div class="grid grid-cols-2 gap-2">
-            <input type="text" name="entre1" placeholder="Calle 1" class="mt-1 w-full bg-[var(--color-bg-secondary)] rounded-md p-2 border border-[var(--color-border)] focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]">
-            <input type="text" name="entre2" placeholder="Calle 2" class="mt-1 w-full bg-[var(--color-bg-secondary)] rounded-md p-2 border border-[var(--color-border)] focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]">
-          </div>
-        </div>
-
-        <div class="md:col-span-2">
-          <label class="text-sm font-medium text-[var(--color-text-secondary)]">Referencias</label>
-          <input type="text" name="referencias" placeholder="Punto de referencia, color de fachada, etc." class="mt-1 w-full bg-[var(--color-bg-secondary)] rounded-md p-2 border border-[var(--color-border)] focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]">
-        </div>
-
         <div class="md:col-span-2 flex items-center justify-between mt-2">
           <label class="flex items-center cursor-pointer">
             <input type="radio" name="principal" id="${uniqueId}" class="h-4 w-4 text-[var(--color-accent)] bg-[var(--color-bg-primary)] border-[var(--color-border)]" ${data.principal == 1 ? "checked" : ""}>
@@ -618,7 +646,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Flujos
     attachCpWorkflow(row, data);
-    attachAddressAutocomplete(row);
+    //attachAddressAutocomplete(row);
   }
 
   // --- Precios especiales ---
