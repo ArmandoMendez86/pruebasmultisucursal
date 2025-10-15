@@ -148,6 +148,54 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
             background: var(--color-bg-primary);
             color: var(--color-text-primary);
         }
+
+        /* Estilo del Contenedor de Bloqueo (Overlay) */
+        #global-loader-overlay {
+            display: none;
+            /* Por defecto, oculto */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            /* Fondo oscuro y semitransparente para bloquear la pantalla */
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 9999;
+            /* Centrar contenido (el spinner y el texto) */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            /* Color del texto */
+            font-family: sans-serif;
+            font-size: 1.2em;
+        }
+
+        /* Estilo del Spinner (Animación de carga) */
+        .spinner {
+            border: 6px solid rgba(255, 255, 255, 0.3);
+            /* Color claro para el cuerpo del aro */
+            border-top: 6px solid #3498db;
+            /* Color de contraste (azul) para la parte móvil */
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            margin-bottom: 15px;
+            /* Espacio entre spinner y texto */
+            animation: spin 1s linear infinite;
+        }
+
+        /* Animación de rotación */
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
     </style>
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css">
@@ -155,6 +203,10 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
 
 <body class="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)]">
 
+    <div id="global-loader-overlay">
+        <div class="spinner"></div>
+        <p>Cargando cliente...</p>
+    </div>
     <div class="flex h-screen">
         <?php include_once '../parciales/navegacion.php'; ?>
 
@@ -472,7 +524,7 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
 
 
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', function() {
             const mobileMenuButton = document.getElementById('mobile-menu-button');
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('sidebar-overlay');

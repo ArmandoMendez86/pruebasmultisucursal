@@ -77,6 +77,7 @@ document.addEventListener("DOMContentLoaded", function () {
   };
   const autoNumericPriceOptions = { ...autoNumericOptions, currencySymbol: '' };
 
+
   // === GEO === Geocodifica una dirección usando Nominatim (con limpieza y fallback)
   async function geocodeAddressStructured({ direccion, ciudad, estado, codigo_postal }) {
     // 0) Limpieza avanzada de 'street'
@@ -256,7 +257,10 @@ document.addEventListener("DOMContentLoaded", function () {
   async function handleFormSubmit(e) {
     e.preventDefault();
     const fd = new FormData(clientForm);
+    let validacionFallida = false; // Declarada aquí
     let clientData = {};
+
+    // 1. Recolección de datos generales
     for (let [k, v] of fd.entries()) {
       if (!k.startsWith('direccion') && !k.startsWith('ciudad') && !k.startsWith('estado') && !k.startsWith('codigo_postal') && !k.startsWith('principal')) clientData[k] = v;
     }
@@ -269,7 +273,7 @@ document.addEventListener("DOMContentLoaded", function () {
       clientData.limite_credito = "0";
     }
 
-
+    // 2. Recolección y Validación de Direcciones
     clientData.direcciones = [];
     document.querySelectorAll("#addresses-container .address-row").forEach(row => {
       // Selección manual o de lista
@@ -278,30 +282,23 @@ document.addEventListener("DOMContentLoaded", function () {
       const ciudad = ciudadSel.value === "__manual__" ? row.querySelector('input[name="ciudad_manual"]').value.trim() : ciudadSel.value.trim();
       const estado = estadoSel.value === "__manual__" ? row.querySelector('input[name="estado_manual"]').value.trim() : estadoSel.value.trim();
 
-      // Extras → se agregan al texto para no tocar el backend
+      // VALIDACIÓN DE CAMPOS REQUERIDOS
       const dirEl = row.querySelector('textarea[name="direccion"]');
+      const datoDireccion = (dirEl.value || "").split("\n")[0].split("[")[0].trim();
+      const codigoPostal = row.querySelector('input[name="codigo_postal"]').value.trim();
+
+      if (!datoDireccion || !codigoPostal || !ciudad || !estado) {
+        validacionFallida = true;
+        return; // Sale de la iteración actual del forEach
+      }
+
+      // Extras → se agregan al texto para no tocar el backend
       const colonia = row.querySelector('[name="colonia"]')?.value.trim() || '';
       const municipio = row.querySelector('input[name="municipio"]')?.value.trim() || '';
       const entre1 = row.querySelector('input[name="entre1"]')?.value.trim() || '';
       const entre2 = row.querySelector('input[name="entre2"]')?.value.trim() || '';
       const refs = row.querySelector('input[name="referencias"]')?.value.trim() || '';
 
-      /* let direccion = dirEl.value.trim();
-      const notas = [];
-      if (colonia) notas.push(`Col. ${colonia}`);
-      if (municipio) notas.push(`Mun. ${municipio}`);
-      if (entre1 || entre2) notas.push(`Entre ${entre1}${entre1 && entre2 ? ' y ' : ''}${entre2}`);
-      if (refs) notas.push(`Refs ${refs}`);
-      if (notas.length) direccion = `${direccion}${direccion ? ' ' : ''}[${notas.join(' | ')}]`;
-
-      if (!direccion) return;
-      clientData.direcciones.push({
-        direccion,
-        ciudad,
-        estado,
-        codigo_postal: row.querySelector('input[name="codigo_postal"]').value.trim(),
-        principal: row.querySelector('input[name="principal"]').checked ? 1 : 0,
-      }); */
       // Tomar SOLO calle y número (primera línea) y quitar cualquier bloque entre corchetes si existiera
       let direccion = (dirEl.value || "").split("\n")[0].split("[")[0].trim();
 
@@ -309,12 +306,19 @@ document.addEventListener("DOMContentLoaded", function () {
         direccion, // limpio
         ciudad,
         estado,
-        codigo_postal: row.querySelector('input[name="codigo_postal"]').value.trim(),
+        codigo_postal: codigoPostal, // Usamos la variable limpia
         principal: row.querySelector('input[name="principal"]').checked ? 1 : 0,
       });
 
     });
 
+    // 3. Validación Final Síncrona (detiene si faltan campos)
+    if (validacionFallida) {
+      showToast("❌ Faltan campos requeridos, verifica (Calle, C.P., Ciudad o Estado).", "error");
+      return; // Detiene la ejecución
+    }
+
+    // 4. Recolección de datos adicionales
     clientData.precios = {};
     specialPriceInstances.forEach(inst => {
       const val = inst.getNumericString();
@@ -327,37 +331,58 @@ document.addEventListener("DOMContentLoaded", function () {
     // --- LOG opcional ---
     console.log("Cliente ANTES de geocodificar:", JSON.parse(JSON.stringify(clientData)));
 
-    // Validaciones mínimas antes de geocodificar
-    clientData.direcciones = clientData.direcciones.filter(d => {
-      const okStreet = (d.direccion || "").trim().length > 0;      // calle y número
-      const okCP = /^\d{5}$/.test(d.codigo_postal || "");           // CP 5 dígitos
-      const okLoc = (d.ciudad && d.ciudad.trim()) || (d.estado && d.estado.trim()); // ciudad o estado
-      return okStreet && okCP && okLoc;
-    });
+    // -----------------------------------------------------
+    // 5. INICIO DE LOADER Y BLOQUE ASÍNCRONO
+    // -----------------------------------------------------
+    showLoader(); // Muestra el loader
 
-    await geocodeDirecciones(clientData.direcciones);
-
-     // 2. Revisión y Alerta (Agregar este bloque si no lo tienes)
-    for (const d of clientData.direcciones) {
-        if (d.latitud && d.latitud !== "0" && d.latitud !== "") {
-            showToast("✅ Coordenadas obtenidas para la dirección: " + d.direccion, "success");
-        } else {
-            // Asumiendo que latitud está vacío ("") si no se encontró
-            showToast("⚠️ ATENCIÓN: No se encontraron coordenadas para la dirección: " + d.direccion, "warning");
-        }
-    }
-
-
-    // --- LOG opcional para verificar ---
-    console.log("Cliente DESPUÉS de geocodificar:", JSON.parse(JSON.stringify(clientData)));
-
-    const url = clientData.id ? `${BASE_URL}/updateClient` : `${BASE_URL}/createClient`;
     try {
-      const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(clientData) });
+      // Validaciones mínimas antes de geocodificar (Mantenemos el filtro original)
+      clientData.direcciones = clientData.direcciones.filter(d => {
+        const okStreet = (d.direccion || "").trim().length > 0;      // calle y número
+        const okCP = /^\d{5}$/.test(d.codigo_postal || "");           // CP 5 dígitos
+        const okLoc = (d.ciudad && d.ciudad.trim()) || (d.estado && d.estado.trim()); // ciudad o estado
+        return okStreet && okCP && okLoc;
+      });
+
+      // 6. Geocodificación (Operación asíncrona)
+      await geocodeDirecciones(clientData.direcciones);
+
+      // 7. Revisión y Alerta de coordenadas
+      for (const d of clientData.direcciones) {
+        if (d.latitud && d.latitud !== "0" && d.latitud !== "") {
+          showToast("✅ Coordenadas obtenidas para la dirección: " + d.direccion, "success");
+        } else {
+          showToast("⚠️ ATENCIÓN: No se encontraron coordenadas para la dirección: " + d.direccion, "warning");
+        }
+      }
+
+      // --- LOG opcional para verificar ---
+      console.log("Cliente DESPUÉS de geocodificar:", JSON.parse(JSON.stringify(clientData)));
+
+      // 8. Guardado/Edición (Fetch al servidor)
+      const url = clientData.id ? `${BASE_URL}/updateClient` : `${BASE_URL}/createClient`;
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(clientData)
+      });
       const result = await r.json();
-      if (result.success) { hideModal(); dataTableInstance.ajax.reload(null, false); showToast(`Cliente ${clientData.id ? "actualizado" : "creado"} exitosamente.`, "success"); }
-      else showToast(result.message, "error");
-    } catch { showToast("No se pudo conectar con el servidor.", "error"); }
+
+      if (result.success) {
+        hideModal();
+        dataTableInstance.ajax.reload(null, false);
+        showToast(`Cliente ${clientData.id ? "actualizado" : "creado"} exitosamente.`, "success");
+      } else {
+        showToast(result.message, "error");
+      }
+
+    } catch (error) {
+      console.error("Error en geocodificación o guardado:", error);
+      showToast("No se pudo conectar con el servidor o hubo un error inesperado.", "error");
+    } finally {
+      hideLoader(); // Oculta el loader siempre
+    }
   }
 
   async function handleDeleteClient(id) {
@@ -465,8 +490,20 @@ document.addEventListener("DOMContentLoaded", function () {
     const n = await fetchNominatimByCP(cp);
     const ciudadN = n?.city || "";
     const municipioN = n?.county || "";
+    /*  populateSelect(ciudadSel, ciudadN ? [ciudadN] : [], "Selecciona ciudad…");
+     if (ciudadN) setSelectValue(ciudadSel, preselect.ciudad || ciudadN);
+     if (municipioInput && municipioN && !municipioInput.value) municipioInput.value = municipioN; */
+
+    // 1. Llenar el select con la ciudad de la API (si existe)
     populateSelect(ciudadSel, ciudadN ? [ciudadN] : [], "Selecciona ciudad…");
-    if (ciudadN) setSelectValue(ciudadSel, preselect.ciudad || ciudadN);
+
+    // 2. Priorizar y cargar la ciudad de la base de datos (preselect.ciudad)
+    // setSelectValue() probablemente añade la opción si no existe y la selecciona.
+    const cityToSelect = preselect.ciudad || ciudadN;
+    if (cityToSelect) {
+      setSelectValue(ciudadSel, cityToSelect);
+    }
+
     if (municipioInput && municipioN && !municipioInput.value) municipioInput.value = municipioN;
 
     // Preselección de colonia si viene en texto
@@ -614,12 +651,12 @@ document.addEventListener("DOMContentLoaded", function () {
           <input type="text" name="estado_manual" placeholder="Escribe estado…" class="mt-2 w-full bg-[var(--color-bg-secondary)] rounded-md p-2 border border-[var(--color-border)] hidden">
         </div>
 
-        <div>
+        <div class='hidden'>
           <label class="text-sm font-medium text-[var(--color-text-secondary)]">Colonia / Asentamiento</label>
           <select name="colonia" class="mt-1 w-full bg-[var(--color-bg-secondary)] rounded-md p-2 border border-[var(--color-border)] focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]"></select>
         </div>
 
-        <div>
+        <div class='hidden'>
           <label class="text-sm font-medium text-[var(--color-text-secondary)]">Municipio / Alcaldía</label>
           <input type="text" name="municipio" value="${data.municipio || ""}" class="mt-1 w-full bg-[var(--color-bg-secondary)] rounded-md p-2 border border-[var(--color-border)] focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]">
         </div>
@@ -989,12 +1026,6 @@ document.addEventListener("DOMContentLoaded", function () {
     window.renderShippingPreview = renderShippingPreview;
   })();
 
-
-
-
-
-
-
   // --- Listeners globales ---
   document.getElementById("add-client-btn").addEventListener("click", prepareNewClientForm);
   document.getElementById("close-modal-btn").addEventListener("click", hideModal);
@@ -1023,6 +1054,24 @@ document.addEventListener("DOMContentLoaded", function () {
     const data = dataTableInstance.row(jQuery(this).parents('tr')).data(); handleOpenPaymentModal(data.id, data.nombre, data.deuda_actual);
   });
 
+  hideLoader(); 
+
   // --- Init ---
   limiteCreditoAn = new AutoNumeric('#limite_credito', autoNumericOptions);
 });
+
+/** Muestra el overlay de carga */
+  function showLoader() {
+    const loader = document.getElementById('global-loader-overlay');
+    if (loader) {
+      loader.style.display = 'flex'; // O 'block', dependiendo de cómo lo diseñes
+    }
+  }
+
+  /** Oculta el overlay de carga */
+  function hideLoader() {
+    const loader = document.getElementById('global-loader-overlay');
+    if (loader) {
+      loader.style.display = 'none';
+    }
+  }

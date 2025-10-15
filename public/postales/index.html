@@ -9,6 +9,11 @@
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v7.3.0/ol.css">
 
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.dataTables.min.css">
+
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -196,8 +201,9 @@
         }
 
         #table-scroll-container {
-            max-height: 260px;
-            overflow-y: auto;
+            max-height: 320px;
+            overflow: hidden;
+            /* DataTables will handle scrolling */
             border: 1px solid #eaeaea;
             border-radius: 8px;
         }
@@ -324,11 +330,12 @@
         <div id="results-container">
             <h3>Resultados de Proximidad (<span id="count-results">0</span> Clientes Encontrados)</h3>
             <div id="table-scroll-container">
-                <table class="results-table" id="tabla-resultados">
+                <table class="results-table" id="tabla-resultados" style="width:100%">
                     <thead>
                         <tr>
                             <th>#</th>
                             <th>Cliente</th>
+                            <th>Tipo de Cliente</th>
                             <th>Distancia (Km)</th>
                             <th>CP</th>
                             <th>Estado</th>
@@ -345,6 +352,16 @@
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/ol@v7.3.0/dist/ol.js"></script>
 
+    <!-- DataTables JS + Buttons/Responsive -->
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.print.min.js"></script>
+
     <script>
         // ===================== VARIABLES GLOBALES =====================
         let map, view, originLayer, destinationLayer, circleLayer, lineLayer, clientAddressesLayer;
@@ -356,6 +373,9 @@
         let currentSearchMode = 'cliente';
         const initialCenter = ol.proj.fromLonLat([-102.00, 24.00]); // Centro de México
         const initialZoom = 5;
+
+        // DataTable instance
+        let dtResults = null;
 
         function truncateText(text, max = 20) {
             return (text && text.length > max) ? text.substring(0, max - 3) + '...' : text;
@@ -400,7 +420,11 @@
         });
 
         const lineStyle = new ol.style.Style({
-            stroke: new ol.style.Stroke({ color: 'rgba(0,0,0,0.4)', width: 1, lineDash: [6, 4] })
+            stroke: new ol.style.Stroke({
+                color: 'rgba(51, 51, 51, 0.7)', // Color más oscuro
+                width: 2.5, // Más grueso
+                lineDash: [12, 6] // Patrón de guiones más largos y separados
+            })
         });
 
         const addressStyle = new ol.style.Style({
@@ -499,7 +523,7 @@
             destinationLayer.getSource().clear();
             lineLayer.getSource().clear();
             circleLayer.getSource().clear();
-            $('#tabla-resultados tbody').empty();
+            if (dtResults) dtResults.clear().draw();
             $('#count-results').text('0');
         }
         function clearOriginState() {
@@ -754,11 +778,9 @@
         }
 
         function renderResults(lista) {
-            const tbody = $('#tabla-resultados tbody');
             const sourceDestination = destinationLayer.getSource();
             const sourceLine = lineLayer.getSource();
 
-            tbody.empty();
             sourceDestination.clear();
             sourceLine.clear();
 
@@ -766,28 +788,30 @@
 
             const originPoint = originCoordinates;
 
+            // Preparar datos para DataTable
+            const rows = [];
+
             lista.forEach((cliente, index) => {
                 const distance = (cliente.distancia_km !== undefined && cliente.distancia_km !== null)
-                    ? parseFloat(cliente.distancia_km).toFixed(2)
-                    : '';
+                    ? parseFloat(cliente.distancia_km)
+                    : null;
 
                 const coords = ol.proj.fromLonLat([parseFloat(cliente.longitud), parseFloat(cliente.latitud)]);
 
-                const row = `
-                <tr>
-                    <td>${index + 1}</td>
-                    <td>${cliente.nombre_cliente}</td>
-                    <td>${distance}</td>
-                    <td>${cliente.codigo_postal ?? ''}</td>
-                    <td>${cliente.estado ?? ''}</td>
-                </tr>
-            `;
-                tbody.append(row);
+                // Añadir fila a la lista que se pasará a DataTables
+                rows.push({
+                    index: index + 1,
+                    nombre: cliente.nombre_cliente,
+                    tipo_cliente: cliente.tipo_nombre, // AÑADIDO
+                    distancia: distance,
+                    cp: cliente.codigo_postal ?? '',
+                    estado: cliente.estado ?? ''
+                });
 
                 const feature = new ol.Feature({
                     geometry: new ol.geom.Point(coords),
                     nombre: cliente.nombre_cliente,
-                    distancia: distance,
+                    distancia: distance !== null ? distance.toFixed(2) : '',
                     cp: cliente.codigo_postal,
                     tipo: 'destino'
                 });
@@ -799,6 +823,13 @@
                 lineFeature.setStyle(lineStyle);
                 sourceLine.addFeature(lineFeature);
             });
+
+            // Cargar rows en DataTable
+            if (dtResults) {
+                dtResults.clear();
+                if (rows.length) dtResults.rows.add(rows);
+                dtResults.draw();
+            }
 
             const allFeatures = sourceDestination.getFeatures().concat(originLayer.getSource().getFeatures());
             if (allFeatures.length > 0) {
@@ -824,7 +855,7 @@
             $('#input-cp-select').val(null).trigger('change');
             $('input[name="search-mode"][value="cliente"]').prop('checked', true).trigger('change');
             clearResults(true);
-            $('#radio-km').val('50');
+            $('#radio-km').val('10');
             view.animate({ center: initialCenter, zoom: initialZoom, duration: 800 });
         }
 
@@ -832,6 +863,53 @@
         $(document).ready(function () {
             initializeMap();
             initializeControls();
+
+            // Iniciar DataTable (uso de datos DOM reemplazado por API)
+            dtResults = $('#tabla-resultados').DataTable({
+                responsive: true,
+                paging: true,
+                pageLength: 10,
+                lengthMenu: [10, 25, 50, 100],
+                dom: 'Bfltip',
+                buttons: [
+                    { extend: 'copy', text: 'Copiar' },
+                    { extend: 'csv', text: 'CSV' },
+                    { extend: 'excel', text: 'Excel' },
+                    { extend: 'pdf', text: 'PDF' },
+                    { extend: 'print', text: 'Imprimir' }
+                ],
+                language: {
+                    url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json',
+                    paginate: {
+                        previous: 'Anterior',
+                        next: 'Siguiente'
+                    },
+                    search: 'Buscar:',
+                    lengthMenu: 'Mostrar _MENU_ registros',
+                    info: 'Mostrando _START_ a _END_ de _TOTAL_ registros',
+                    infoEmpty: 'Mostrando 0 a 0 de 0 registros',
+                    infoFiltered: '(filtrado de _MAX_ registros totales)',
+                    zeroRecords: 'No se encontraron registros coincidentes',
+                    loadingRecords: 'Cargando...'
+                },
+                columns: [
+                    { data: 'index' },
+                    { data: 'nombre' },
+                    { data: 'tipo_cliente' }, // AÑADIDO
+                    {
+                        data: 'distancia',
+                        render: function (data, type, row) {
+                            if (data === null || data === undefined || isNaN(data)) return '';
+                            // mostrar con 2 decimales en vista
+                            return parseFloat(data).toFixed(2);
+                        },
+                        className: 'dt-body-right'
+                    },
+                    { data: 'cp' },
+                    { data: 'estado' }
+                ],
+                order: [[3, 'asc']] // CAMBIADO de 2 a 3 (la columna 'distancia' ahora es la 3)
+            });
         });
     </script>
 </body>

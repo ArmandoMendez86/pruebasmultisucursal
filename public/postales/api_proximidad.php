@@ -3,7 +3,7 @@
 // Campos reales usados de cliente_direcciones: id, id_cliente, direccion, ciudad, estado, codigo_postal, latitud, longitud
 
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *'); 
+header('Access-Control-Allow-Origin: *');
 
 // --- CONFIGURACIÓN DE CONEXIÓN A LA BASE DE DATOS (AJUSTAR) ---
 $servername = "localhost";
@@ -26,13 +26,14 @@ try {
     $conn = new PDO("mysql:host=$servername;dbname=$dbname;charset=utf8mb4", $username, $password);
     $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    // NOTA: ya NO se filtra por principal=1. Se consideran TODAS las direcciones con lat/lon.
+   // NOTA: ya NO se filtra por principal=1. Se consideran TODAS las direcciones con lat/lon.
     $query = "
         SELECT
             c.id AS id_cliente,
             c.nombre AS nombre_cliente,
             cd.codigo_postal,
             cd.estado,
+            ct.Nombre AS tipo_nombre,
             cd.latitud,
             cd.longitud,
             ( 6371 * acos(
@@ -44,6 +45,7 @@ try {
             ) ) AS distancia_km
         FROM clientes c
         INNER JOIN cliente_direcciones cd ON c.id = cd.id_cliente
+        INNER JOIN cliente_tipo ct ON c.id_tipo = ct.id  /* Se une con la columna 'id_tipo' de la tabla 'clientes' */
         WHERE
             cd.latitud IS NOT NULL AND cd.longitud IS NOT NULL
         HAVING

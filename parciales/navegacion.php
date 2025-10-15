@@ -194,6 +194,11 @@ $logo = !empty($_SESSION['logo_url']) ? '/multi-sucursal/public' . $_SESSION['lo
         <i class="fas fa-table mr-2"></i> <span class="nav-text ml-3">Reportes dinamicos</span><span
           class="tooltip">Reportes dinamicos</span>
       </a>
+      <a href="./postales" target="_blank"
+        class="tooltip-container flex items-center px-4 py-2.5 text-sm font-medium rounded-lg">
+        <i class="fas fa-location mr-2"></i> <span class="nav-text ml-3">Ubicaciónes</span><span
+          class="tooltip">Ubicaciones Clientes</span>
+      </a>
     <?php endif; ?>
     <?php if (isset($_SESSION['rol']) && $_SESSION['rol'] == 'Super'): ?>
       <a href="reporte_global.php"
