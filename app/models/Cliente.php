@@ -359,7 +359,7 @@ class Cliente
         $stmt_delete = $this->conn->prepare("DELETE FROM " . $this->address_table . " WHERE id_cliente = :id_cliente");
         $stmt_delete->bindParam(':id_cliente', $id_cliente);
         $stmt_delete->execute();
-        $query = "INSERT INTO " . $this->address_table . " (id_cliente, direccion, ciudad, estado, codigo_postal, principal, latitud, longitud) VALUES (:id_cliente, :direccion, :ciudad, :estado, :codigo_postal, :principal, :latitud, :longitud)";
+        $query = "INSERT INTO " . $this->address_table . " (id_cliente, direccion, ciudad, estado, codigo_postal, principal, latitud, longitud, direccion_respaldo) VALUES (:id_cliente, :direccion, :ciudad, :estado, :codigo_postal, :principal, :latitud, :longitud, :direccion_respaldo)";
         $stmt_insert = $this->conn->prepare($query);
         foreach ($direcciones as $dir) {
             if (!empty($dir['direccion'])) {
@@ -371,6 +371,7 @@ class Cliente
                 $stmt_insert->bindParam(':principal', $dir['principal'], PDO::PARAM_BOOL);
                 $stmt_insert->bindParam(':latitud', $dir['latitud']);
                 $stmt_insert->bindParam(':longitud', $dir['longitud']);
+                $stmt_insert->bindParam(':direccion_respaldo', $dir['direccion_respaldo']);
                 $stmt_insert->execute();
             }
         }

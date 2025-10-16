@@ -28,6 +28,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const printBtn = document.getElementById("print-shipping-btn");
 
 
+
   // --- DATATABLE ---
   dataTableInstance = jQuery('#clientesTable').DataTable({
     processing: true,
@@ -301,6 +302,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       // Tomar SOLO calle y número (primera línea) y quitar cualquier bloque entre corchetes si existiera
       let direccion = (dirEl.value || "").split("\n")[0].split("[")[0].trim();
+      let direccion_respaldo = row.querySelector('textarea[name="direccion_respaldo"]').value.trim();
 
       clientData.direcciones.push({
         direccion, // limpio
@@ -308,6 +310,7 @@ document.addEventListener("DOMContentLoaded", function () {
         estado,
         codigo_postal: codigoPostal, // Usamos la variable limpia
         principal: row.querySelector('input[name="principal"]').checked ? 1 : 0,
+        direccion_respaldo
       });
 
     });
@@ -628,7 +631,7 @@ document.addEventListener("DOMContentLoaded", function () {
     row.innerHTML = `
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="md:col-span-2 relative direccion-wrapper">
-         <label class="text-sm font-medium text-[var(--color-text-secondary)]">Calle y número</label>
+         <label class="text-sm font-medium text-[var(--color-text-secondary)]">Dirección Geolocalización (Calle y Número)</label>
           <textarea name="direccion" class="mt-1 w-full bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]" rows="3">${(data.direccion || "").replace(/\s*\[[^\]]*\]\s*$/, "")}</textarea>
           <div class="address-suggestions hidden absolute left-0 right-0 max-h-56 overflow-auto bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-md shadow-md z-50"></div>
         </div>
@@ -650,6 +653,20 @@ document.addEventListener("DOMContentLoaded", function () {
           <select name="estado" class="mt-1 w-full bg-[var(--color-bg-secondary)] rounded-md p-2 border border-[var(--color-border)] focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]"></select>
           <input type="text" name="estado_manual" placeholder="Escribe estado…" class="mt-2 w-full bg-[var(--color-bg-secondary)] rounded-md p-2 border border-[var(--color-border)] hidden">
         </div>
+
+        <div class="md:col-span-2 relative direccion-wrapper">
+         <label class="text-sm font-medium text-[var(--color-text-secondary)]">Dirección de Envío</label>
+         <textarea id="direccion_respaldo" name="direccion_respaldo" class="mt-1 w-full bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]" rows="3">${(data.direccion_respaldo || "")}</textarea>
+
+         <!-- NEW: checkbox para elegir usar la dirección de respaldo -->
+         <div class="mt-2">
+           <label class="flex items-center cursor-pointer text-sm">
+             <input type="checkbox" class="use-respaldo-checkbox h-4 w-4 text-[var(--color-accent)] bg-[var(--color-bg-primary)] border-[var(--color-border)]"}>
+             <span class="ml-2">Usar dirección de respaldo</span>
+           </label>
+         </div>
+        </div>
+
 
         <div class='hidden'>
           <label class="text-sm font-medium text-[var(--color-text-secondary)]">Colonia / Asentamiento</label>
@@ -897,7 +914,17 @@ document.addEventListener("DOMContentLoaded", function () {
       if (!rows.length) return '';
       const row = rows.find(r => r.querySelector('input[name="principal"]')?.checked) || rows[0];
 
-      const dir = (row.querySelector('textarea[name="direccion"]')?.value || '').trim();
+      // Si el usuario marcó "Usar dirección de respaldo" y existe texto en ella, úsala.
+      const useRespaldo = !!row.querySelector('.use-respaldo-checkbox')?.checked;
+      const direccionRespaldo = (row.querySelector('textarea[name="direccion_respaldo"]')?.value || '').trim();
+
+      let dir;
+      if (useRespaldo && direccionRespaldo) {
+        dir = direccionRespaldo;
+      } else {
+        dir = (row.querySelector('textarea[name="direccion"]')?.value || '').trim();
+      }
+
       const ciudad = (row.querySelector('input[name="ciudad_manual"]')?.value
         || row.querySelector('select[name="ciudad"]')?.value || '').trim();
       const estado = (row.querySelector('input[name="estado_manual"]')?.value
@@ -910,6 +937,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (cp) partes.push(cp);
       return partes.join('. ');
     }
+
 
     // CSS base + leyenda amarilla
     function baseStyles() {
@@ -1054,24 +1082,24 @@ document.addEventListener("DOMContentLoaded", function () {
     const data = dataTableInstance.row(jQuery(this).parents('tr')).data(); handleOpenPaymentModal(data.id, data.nombre, data.deuda_actual);
   });
 
-  hideLoader(); 
+  hideLoader();
 
   // --- Init ---
   limiteCreditoAn = new AutoNumeric('#limite_credito', autoNumericOptions);
 });
 
 /** Muestra el overlay de carga */
-  function showLoader() {
-    const loader = document.getElementById('global-loader-overlay');
-    if (loader) {
-      loader.style.display = 'flex'; // O 'block', dependiendo de cómo lo diseñes
-    }
+function showLoader() {
+  const loader = document.getElementById('global-loader-overlay');
+  if (loader) {
+    loader.style.display = 'flex'; // O 'block', dependiendo de cómo lo diseñes
   }
+}
 
-  /** Oculta el overlay de carga */
-  function hideLoader() {
-    const loader = document.getElementById('global-loader-overlay');
-    if (loader) {
-      loader.style.display = 'none';
-    }
+/** Oculta el overlay de carga */
+function hideLoader() {
+  const loader = document.getElementById('global-loader-overlay');
+  if (loader) {
+    loader.style.display = 'none';
   }
+}
