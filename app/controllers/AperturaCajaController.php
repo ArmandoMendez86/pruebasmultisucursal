@@ -1,5 +1,6 @@
 <?php
 // Archivo: /app/controllers/AperturaCajaController.php
+date_default_timezone_set('America/Mexico_City');
 
 require_once __DIR__ . '/../models/AperturaCaja.php';
 
@@ -65,7 +66,7 @@ class AperturaCajaController
         $id_usuario = $_SESSION['user_id'];
         $id_sucursal = $_SESSION['branch_id'];
         $monto_inicial = floatval($data['monto_inicial']);
-        $fecha_apertura = date('Y-m-d');
+        $fecha_apertura = $data['fecha_apertura'] ? $data['fecha_apertura'] : date('Y-m-d');
 
         try {
             $id_apertura = $this->aperturaCajaModel->registrarApertura($id_usuario, $id_sucursal, $fecha_apertura, $monto_inicial);
